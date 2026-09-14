@@ -31,6 +31,7 @@ class MainTests(TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertIn("booking-opera", output.getvalue())
+        self.assertIn("conferencia-recebimentos", output.getvalue())
 
     def test_unknown_automation_returns_two(self):
         errors = StringIO()

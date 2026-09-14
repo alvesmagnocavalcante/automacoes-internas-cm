@@ -12,6 +12,7 @@ para a automação solicitada.
 | Identificador | Descrição |
 | --- | --- |
 | `booking-opera` | Conciliação de reservas e valores entre Booking e OPERA. |
+| `conferencia-recebimentos` | Conferência diária entre OPERA, CMFlex e Rede. |
 
 Para consultar a lista pelo terminal:
 
@@ -67,6 +68,34 @@ uv run python main.py booking-opera --output-dir output
 O identificador da automação é obrigatório. Executar `python main.py` sem um
 identificador exibe as opções disponíveis e encerra com código de erro.
 
+### Conferência de recebimentos
+
+Para testar somente o login, a seleção do hotel e o download do relatório
+Pagamentos Financeiros do OPERA, mantenha `OPERA_USERNAME`, `OPERA_PASSWORD` e
+`OPERA_HOTEL` no arquivo `.env` e execute:
+
+```powershell
+uv run python main.py conferencia-recebimentos --baixar-opera
+```
+
+O navegador é fechado ao final e o arquivo é salvo em `output/recebimentos`.
+O download do CMFlex ainda será incorporado ao RPA. Para executar somente a
+conferência com os três arquivos já baixados:
+
+```powershell
+uv run python main.py conferencia-recebimentos `
+  --opera "opera.xml" `
+  --cmflex "cmflex.xlsx" `
+  --rede "venda-rede.xlsx"
+```
+
+O relatório do OPERA pode estar em XML ou XLSX. O resultado detalhado é salvo
+em `output/conferencia_recebimentos.json`. A
+conferência utiliza os últimos quatro dígitos e o valor para cartões, o número da
+transação para Pix, o número do fólio para valores a faturar e o total diário
+para depósitos. Valores positivos no relatório do OPERA são tratados como
+estornos.
+
 ## GitHub Actions e runner local
 
 O workflow da Booking × OPERA está definido em
@@ -106,6 +135,9 @@ Cadastre os seguintes secrets em
 A execução manual está disponível em
 **Actions → Conciliação Booking x OPERA → Run workflow**.
 
+O workflow também é executado de segunda a sexta-feira às 10:00 UTC (07:00 no
+horário de Brasília, UTC-3).
+
 ### Arquivos gerados
 
 Os relatórios são gravados no diretório `output/`:
@@ -113,6 +145,9 @@ Os relatórios são gravados no diretório `output/`:
 - `reservas_booking.csv`;
 - `conferencia_booking_opera.csv`;
 - `conferencia_booking_opera.xlsx`.
+
+O relatório final inclui os valores da Booking, a comissão cobrada, o valor do
+OPERA, a diferença, o status e as observações da conciliação.
 
 Ao final do workflow, o diretório é publicado no artefato
 `booking-opera-<número-da-execução>`.

@@ -1,0 +1,100 @@
+"""CLI da conferência diária de recebimentos."""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+from collections.abc import Sequence
+from pathlib import Path
+
+from automations.recebimentos.opera_browser import (
+    config_from_env,
+    load_environment,
+    run_opera_download,
+)
+from automations.recebimentos.service import run
+
+LOGGER = logging.getLogger("conferencia-recebimentos")
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    load_environment()
+    parser = argparse.ArgumentParser(
+        prog="python main.py conferencia-recebimentos",
+        description="Confere recebimentos entre OPERA, CMFlex e Rede.",
+    )
+    parser.add_argument("--opera", type=Path, help="Relatório XML ou XLSX do OPERA.")
+    parser.add_argument("--cmflex", type=Path, help="Relatório XLSX do CMFlex.")
+    parser.add_argument("--rede", type=Path, help="Relatório XLSX da Rede.")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("output/conferencia_recebimentos.json"),
+        help="Arquivo JSON detalhado do resultado.",
+    )
+    parser.add_argument(
+        "--fail-on-divergence",
+        action="store_true",
+        help="Retorna código 2 quando houver divergências.",
+    )
+    parser.add_argument(
+        "--baixar-opera",
+        action="store_true",
+        help="Testa o RPA e baixa somente o relatório Pagamentos Financeiros.",
+    )
+    parser.add_argument(
+        "--hotel",
+        default=os.getenv("RECEBIMENTOS_OPERA_HOTEL") or os.getenv("OPERA_HOTEL", ""),
+        help="Hotel/resort do OPERA; usa RECEBIMENTOS_OPERA_HOTEL ou OPERA_HOTEL.",
+    )
+    parser.add_argument(
+        "--download-dir",
+        type=Path,
+        default=Path("output/recebimentos"),
+        help="Pasta para o relatório baixado do OPERA.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    )
+    try:
+        if args.baixar_opera:
+            if not args.hotel.strip():
+                raise ValueError(
+                    "Informe --hotel ou RECEBIMENTOS_OPERA_HOTEL para baixar o OPERA."
+                )
+            downloaded = run_opera_download(
+                config_from_env(), args.hotel, args.download_dir
+            )
+            LOGGER.info("Relatório OPERA baixado: %s", downloaded)
+            return 0
+
+        missing = [
+            name
+            for name, value in (
+                ("--opera", args.opera),
+                ("--cmflex", args.cmflex),
+                ("--rede", args.rede),
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                "Informe os relatórios para a conferência: " + ", ".join(missing)
+            )
+        result = run(args.opera, args.cmflex, args.rede, args.output)
+    except Exception as error:
+        LOGGER.exception("Conferência encerrada: %s", error)
+        return 1
+    LOGGER.info(
+        "Resultado: %d OK, %d divergentes. Detalhes: %s",
+        result.matched_count,
+        result.divergent_count,
+        args.output,
+    )
+    return 2 if args.fail_on_divergence and result.divergent_count else 0
