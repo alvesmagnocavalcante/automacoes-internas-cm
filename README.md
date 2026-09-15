@@ -116,6 +116,9 @@ self-hosted, windows, x64
 Como a automação utiliza um navegador visível, o runner não deve ser executado
 como serviço do Windows.
 
+Os workflows definem `UV_SYSTEM_CERTS=true` para que o `uv` confie no repositório
+de certificados do Windows, inclusive em redes com certificado corporativo.
+
 ## Configuração da Booking × OPERA
 
 Cadastre os seguintes secrets em

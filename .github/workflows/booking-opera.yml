@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 90
     env:
       CI: "true"
+      UV_SYSTEM_CERTS: "true"
       BOOKING_HEADLESS: "false"
       BOOKING_OUTPUT_DIR: output
       BOOKING_USERNAME: ${{ secrets.BOOKING_USERNAME }}
