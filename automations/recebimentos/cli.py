@@ -6,18 +6,25 @@ import argparse
 import logging
 import os
 from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
 
 from automations.recebimentos.cmflex_browser import (
     config_from_env as cmflex_config_from_env,
 )
 from automations.recebimentos.cmflex_browser import run_cmflex_download
+from automations.recebimentos.daily_files import (
+    find_downloaded_report,
+    find_rede_report,
+    previous_report_date,
+)
 from automations.recebimentos.opera_browser import (
     config_from_env,
     load_environment,
     run_opera_download,
 )
 from automations.recebimentos.service import run
+from automations.recebimentos.workbooks import save_conference_workbooks
 
 LOGGER = logging.getLogger("conferencia-recebimentos")
 
@@ -31,6 +38,29 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--opera", type=Path, help="Relatório XML ou XLSX do OPERA.")
     parser.add_argument("--cmflex", type=Path, help="Relatório XLSX do CMFlex.")
     parser.add_argument("--rede", type=Path, help="Relatório XLSX da Rede.")
+    parser.add_argument(
+        "--rede-dir",
+        type=Path,
+        default=(Path(value) if (value := os.getenv("RECEBIMENTOS_REDE_DIR")) else None),
+        help="Pasta onde o setor disponibiliza o relatório da Rede.",
+    )
+    parser.add_argument(
+        "--archive-root",
+        type=Path,
+        default=Path(
+            os.getenv("RECEBIMENTOS_ARCHIVE_ROOT")
+            or "output/recebimentos/conferencias"
+        ),
+        help="Raiz do arquivo mensal/diário das conferências.",
+    )
+    parser.add_argument(
+        "--conferir-baixados",
+        action="store_true",
+        help=(
+            "Localiza os relatórios do dia anterior, baixa OPERA/CMFlex quando "
+            "necessário e arquiva a conferência."
+        ),
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -75,6 +105,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    archive_request = None
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
@@ -98,6 +129,41 @@ def main(argv: Sequence[str] | None = None) -> int:
             LOGGER.info("Relatório CMFlex baixado: %s", downloaded)
             return 0
 
+        if args.conferir_baixados:
+            if args.rede_dir is None:
+                raise ValueError("Informe --rede-dir ou RECEBIMENTOS_REDE_DIR.")
+            report_date = previous_report_date(date.today())
+            try:
+                args.opera = find_downloaded_report(
+                    args.download_dir, "opera", report_date
+                )
+            except FileNotFoundError:
+                if not args.hotel.strip():
+                    raise ValueError(
+                        "Informe --hotel ou RECEBIMENTOS_OPERA_HOTEL para baixar o OPERA."
+                    ) from None
+                LOGGER.info("Relatório OPERA ausente; iniciando download.")
+                args.opera = run_opera_download(
+                    config_from_env(), args.hotel, args.download_dir
+                )
+
+            try:
+                args.cmflex = find_downloaded_report(
+                    args.download_dir, "cmflex", report_date
+                )
+            except FileNotFoundError:
+                LOGGER.info("Relatório CMFlex ausente; iniciando download.")
+                args.cmflex = run_cmflex_download(
+                    cmflex_config_from_env(args.empresa_cmflex),
+                    args.download_dir,
+                )
+            args.rede = find_rede_report(args.rede_dir, report_date)
+            archive_request = (
+                args.archive_root,
+                report_date,
+                args.hotel or args.empresa_cmflex,
+            )
+
         missing = [
             name
             for name, value in (
@@ -111,7 +177,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise ValueError(
                 "Informe os relatórios para a conferência: " + ", ".join(missing)
             )
-        result = run(args.opera, args.cmflex, args.rede, args.output)
+        result = run(
+            args.opera,
+            args.cmflex,
+            args.rede,
+            None if archive_request is not None else args.output,
+        )
+        if archive_request is not None:
+            destination, _ = save_conference_workbooks(
+                args.opera,
+                args.cmflex,
+                args.rede,
+                result,
+                *archive_request,
+            )
+            args.output = destination
     except Exception as error:
         LOGGER.exception("Conferência encerrada: %s", error)
         return 1

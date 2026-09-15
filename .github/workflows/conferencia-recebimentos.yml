@@ -26,6 +26,8 @@ jobs:
       RECEBIMENTOS_CMFLEX_USERNAME: ${{ secrets.RECEBIMENTOS_CMFLEX_USERNAME }}
       RECEBIMENTOS_CMFLEX_PASSWORD: ${{ secrets.RECEBIMENTOS_CMFLEX_PASSWORD }}
       RECEBIMENTOS_CMFLEX_COMPANY: ${{ secrets.RECEBIMENTOS_CMFLEX_COMPANY || vars.RECEBIMENTOS_CMFLEX_COMPANY }}
+      RECEBIMENTOS_REDE_DIR: ${{ vars.RECEBIMENTOS_REDE_DIR }}
+      RECEBIMENTOS_ARCHIVE_ROOT: ${{ vars.RECEBIMENTOS_ARCHIVE_ROOT }}
 
     steps:
       - name: Baixar código
@@ -56,6 +58,10 @@ jobs:
 
       - name: Baixar relatório do CMFlex
         run: uv run python main.py conferencia-recebimentos --baixar-cmflex
+
+      - name: Conferir e arquivar relatórios
+        if: ${{ vars.RECEBIMENTOS_REDE_DIR != '' }}
+        run: uv run python main.py conferencia-recebimentos --conferir-baixados
 
       - name: Publicar relatório
         if: ${{ always() }}

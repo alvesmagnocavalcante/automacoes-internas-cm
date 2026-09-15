@@ -14,6 +14,20 @@ from automations.recebimentos.models import CmflexPayment, OperaPayment, RedePay
 from automations.recebimentos.normalization import normalize
 
 
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def opera_xml_has_transactions(path: Path) -> bool:
+    if path.suffix.casefold() != ".xml":
+        return True
+    try:
+        root = ElementTree.parse(path).getroot()
+    except ElementTree.ParseError:
+        return False
+    return any(_local_name(node.tag) == "G_TRANSACTION" for node in root.iter())
+
+
 def identifier(value: object) -> str:
     if value is None:
         return ""
@@ -113,7 +127,7 @@ def parse_cmflex(path: Path) -> list[CmflexPayment]:
 def parse_rede(path: Path) -> list[RedePayment]:
     required = {
         "status da venda",
-        "valor da venda atualizado",
+        "valor da venda original",
         "modalidade",
         "bandeira",
         "nsu/cv",
@@ -134,8 +148,10 @@ def parse_rede(path: Path) -> list[RedePayment]:
                 ),
                 nsu=identifier(row["nsu/cv"]),
                 amount=decimal_value(
-                    row["valor da venda atualizado"],
-                    field="valor da venda atualizado",
+                    row.get("valor da venda atualizado")
+                    if row.get("valor da venda atualizado") not in (None, "", "-")
+                    else row["valor da venda original"],
+                    field="valor da venda",
                     row_number=row_number,
                 ),
             )
@@ -147,7 +163,7 @@ def _opera_payment(row: dict[str, object], row_number: int) -> OperaPayment:
     return OperaPayment(
         transaction_id=identifier(row["trx_no"]),
         folio_number=identifier(row.get("folio_no")),
-        transaction_code=identifier(row["trx_code"]),
+        transaction_code=identifier(row.get("trx_code") or row.get("grp_first")),
         description=identifier(row["trx_desc"]),
         card_last_four=card_last_four(row.get("card_number")),
         amount=-decimal_value(
@@ -167,8 +183,14 @@ def _parse_opera_xml(path: Path) -> list[OperaPayment]:
         raise ValueError(f"XML inválido em {path}: {error}") from error
     payments = []
     required = {"trx_no", "trx_code", "trx_desc", "guest_account_credit"}
-    for row_number, node in enumerate(root.findall(".//G_TRANSACTION"), start=1):
-        row = {normalize(child.tag): (child.text or "").strip() for child in node}
+    transaction_nodes = (
+        node for node in root.iter() if _local_name(node.tag) == "G_TRANSACTION"
+    )
+    for row_number, node in enumerate(transaction_nodes, start=1):
+        row = {
+            normalize(_local_name(child.tag)): (child.text or "").strip()
+            for child in node
+        }
         missing = required - row.keys()
         if missing:
             raise ValueError(
@@ -182,7 +204,7 @@ def _parse_opera_xml(path: Path) -> list[OperaPayment]:
 
 
 def _parse_opera_xlsx(path: Path) -> list[OperaPayment]:
-    required = {"trx_no", "trx_code", "trx_desc", "guest_account_credit"}
+    required = {"trx_no", "trx_desc", "guest_account_credit"}
     payments = [
         _opera_payment(row, row_number) for row_number, row in _records(path, required)
     ]

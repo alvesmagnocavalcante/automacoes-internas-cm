@@ -20,6 +20,8 @@ from DrissionPage.errors import (
     NoRectError,
 )
 
+from automations.recebimentos.parsers import opera_xml_has_transactions
+
 OPERA_URL = (
     "https://mtcu7.oraclehospitality.us-ashburn-1.ocs.oraclecloud.com/"
     "CARMEL/operacloud/faces/opera-cloud-index/OperaCloud"
@@ -91,14 +93,13 @@ REPORT_DATE_SELECTORS = (
     "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/input",
     'xpath://input[contains(@id, "mdmprm_695718131") and not(@type="hidden")]',
 )
+
 FILTER_FIELD_SELECTORS = (
     (
         "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[3]/div[2]/div/div[2]/div[1]/span/span/span[2]/span[2]/span/span/input",
-        'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:j_idt1217:mdmprm_695718131:oc_mdm_rptpm_lov1:odec_lov_itLovetext::content"]',
     ),
     (
         "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[3]/div[2]/div/div[2]/div[2]/span/span/span[2]/span[2]/span/span/input",
-        'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:j_idt1220:mdmprm_695718131:oc_mdm_rptpm_lov1:odec_lov_itLovetext::content"]',
     ),
 )
 GENERATE_REPORT_SELECTORS = (
@@ -484,6 +485,44 @@ def _wait_for_report_download(
     return Path(downloaded)
 
 
+def _clear_filter_field(
+    tab: Any,
+    selectors: tuple[str, ...],
+    description: str,
+    cancel: Event | None,
+) -> None:
+    """Limpa um LOV do OPERA e confirma o valor após possível atualização ADF."""
+    last_value = ""
+    for _ in range(3):
+        field = find_visible_any(tab, selectors, description, cancel, timeout=30)
+        try:
+            field.run_js(
+                """
+                const setter = Object.getOwnPropertyDescriptor(
+                    HTMLInputElement.prototype, 'value'
+                ).set;
+                setter.call(this, '');
+                this.removeAttribute('value');
+                this.dispatchEvent(new Event('input', {bubbles: true}));
+                this.dispatchEvent(new Event('change', {bubbles: true}));
+                this.blur();
+                """
+            )
+        except (ContextLostError, ElementLostError):
+            pass
+        sleep(ACTION_SETTLE_SECONDS)
+        try:
+            refreshed = find_visible_any(
+                tab, selectors, description, cancel, timeout=30
+            )
+            last_value = str(refreshed.property("value") or "").strip()
+        except (ContextLostError, ElementLostError):
+            continue
+        if not last_value:
+            return
+    raise RuntimeError(f"{description} não foi limpo; valor atual: {last_value!r}.")
+
+
 def download_financial_payments(
     tab: Any,
     download_dir: Path,
@@ -536,31 +575,32 @@ def download_financial_payments(
         cancel,
         timeout=45,
     )
-    report_date_field.input(report_date.strftime("%d/%m/%Y"), clear=True)
+    formatted_report_date = report_date.strftime("%d/%m/%Y")
+    report_date_field.input(formatted_report_date, clear=True)
+    report_date_field.run_js("this.blur();")
     sleep(ACTION_SETTLE_SECONDS)
+    report_date_field = find_visible_any(
+        tab,
+        REPORT_DATE_SELECTORS,
+        "Data do relatório",
+        cancel,
+        timeout=45,
+    )
+    current_date = str(report_date_field.property("value") or "")
+    if "".join(filter(str.isdigit, current_date)) != "".join(
+        filter(str.isdigit, formatted_report_date)
+    ):
+        raise RuntimeError(
+            f"O campo de data do OPERA não aceitou {formatted_report_date}."
+        )
 
     for index, selectors in enumerate(FILTER_FIELD_SELECTORS, start=1):
-        field = find_visible_any(
+        _clear_filter_field(
             tab,
             selectors,
             f"Campo de filtro {index}",
             cancel,
-            timeout=30,
         )
-        field.run_js(
-            """
-            const setter = Object.getOwnPropertyDescriptor(
-                HTMLInputElement.prototype, 'value'
-            ).set;
-            setter.call(this, '');
-            this.dispatchEvent(new Event('input', {bubbles: true}));
-            this.dispatchEvent(new Event('change', {bubbles: true}));
-            this.blur();
-            """
-        )
-        sleep(ACTION_SETTLE_SECONDS)
-        if str(field.property("value") or "").strip():
-            raise RuntimeError(f"Campo de filtro {index} não foi limpo.")
 
     final_actions = (
         (GENERATE_REPORT_SELECTORS, "Geração do relatório", PAGE_SETTLE_SECONDS, 45),
@@ -581,6 +621,11 @@ def download_financial_payments(
     if not downloaded_path.is_file():
         raise RuntimeError(
             f"O OPERA informou o download, mas o arquivo não existe: {downloaded_path}"
+        )
+    if not opera_xml_has_transactions(downloaded_path):
+        raise RuntimeError(
+            "O OPERA gerou um XML vazio. Confirme se Cashier e Transaction Code "
+            "foram limpos e se a data do relatório está correta."
         )
     return downloaded_path
 

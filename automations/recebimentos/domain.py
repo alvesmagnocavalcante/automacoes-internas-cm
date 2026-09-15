@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from decimal import Decimal
+from itertools import combinations
 
 from automations.recebimentos.models import (
     CmflexPayment,
@@ -20,6 +21,8 @@ TOLERANCE = Decimal("0.01")
 
 def classify_opera(payment: OperaPayment) -> str | None:
     description = normalize(payment.description)
+    if payment.transaction_code == "9086" or "dinheiro" in description:
+        return "DINHEIRO"
     if payment.transaction_code == "9087" or "pix" in description:
         return "PIX"
     if payment.transaction_code == "9090" or "faturar" in description:
@@ -36,6 +39,8 @@ def classify_cmflex(payment: CmflexPayment) -> str | None:
         return None
     customer = normalize(payment.customer)
     document_type = normalize(payment.document_type)
+    if customer == "dinheiro" or "movimento de caixa" in document_type:
+        return "DINHEIRO"
     if "nota fiscal" in document_type:
         return "A FATURAR"
     if customer == "deposito" and document_type == "deposito":
@@ -54,6 +59,7 @@ def reconcile(
 ) -> ReconciliationResult:
     items = [
         *_reconcile_cards(opera, rede),
+        *_reconcile_cmflex(opera, cmflex, "DINHEIRO"),
         *_reconcile_cmflex(opera, cmflex, "PIX"),
         *_reconcile_cmflex(opera, cmflex, "A FATURAR"),
         *_reconcile_deposits(opera, cmflex),
@@ -79,62 +85,107 @@ def _is_rede_card(payment: RedePayment) -> bool:
 def _reconcile_cards(
     opera: list[OperaPayment], rede: list[RedePayment]
 ) -> list[ReconciliationItem]:
-    opera_by_card = _group_by(
-        [payment for payment in opera if classify_opera(payment) == "CARTÃO"],
-        lambda payment: payment.card_last_four,
-    )
-    rede_by_card = _group_by(
-        [payment for payment in rede if _is_rede_card(payment)],
-        lambda payment: payment.card_last_four,
-    )
+    remaining_opera = [
+        payment for payment in opera if classify_opera(payment) == "CARTÃO"
+    ]
+    remaining_rede = [payment for payment in rede if _is_rede_card(payment)]
     items = []
-    for card in sorted(opera_by_card.keys() | rede_by_card.keys()):
-        opera_rows = list(opera_by_card.get(card, ()))
-        rede_rows = list(rede_by_card.get(card, ()))
-        remaining_opera = list(opera_rows)
-        remaining_rede = []
-        for rede_row in rede_rows:
-            match = next(
-                (
-                    opera_row
-                    for opera_row in remaining_opera
-                    if abs(opera_row.amount - rede_row.amount) <= TOLERANCE
-                ),
-                None,
-            )
-            if match is None:
-                remaining_rede.append(rede_row)
-                continue
+
+    for rede_row in list(remaining_rede):
+        match = next(
+            (
+                opera_row
+                for opera_row in remaining_opera
+                if _cards_compatible(opera_row, rede_row)
+                and abs(opera_row.amount - rede_row.amount) <= TOLERANCE
+            ),
+            None,
+        )
+        if match is None:
+            continue
+        remaining_rede.remove(rede_row)
+        remaining_opera.remove(match)
+        items.append(_card_item((rede_row,), (match,)))
+
+    for rede_row in list(remaining_rede):
+        matches = _amount_subset(
+            remaining_opera,
+            rede_row.amount,
+            lambda row: row.amount,
+            lambda row: _cards_compatible(row, rede_row),
+        )
+        if not matches:
+            continue
+        remaining_rede.remove(rede_row)
+        for match in matches:
             remaining_opera.remove(match)
-            items.append(
-                _item(
-                    category="CARTÃO",
-                    comparison="Rede x OPERA",
-                    key=f"cartão final {card or 'não informado'}",
-                    external_ids=(rede_row.nsu,),
-                    opera_ids=(match.transaction_id,),
-                    expected=rede_row.amount,
-                    opera_amount=match.amount,
-                )
-            )
-        if remaining_opera or remaining_rede:
-            items.append(
-                _item(
-                    category="CARTÃO",
-                    comparison="Rede x OPERA",
-                    key=f"cartão final {card or 'não informado'}",
-                    external_ids=tuple(row.nsu for row in remaining_rede),
-                    opera_ids=tuple(row.transaction_id for row in remaining_opera),
-                    expected=sum(
-                        (row.amount for row in remaining_rede), start=Decimal("0")
-                    ),
-                    opera_amount=sum(
-                        (row.amount for row in remaining_opera), start=Decimal("0")
-                    ),
-                    observation="Lançamentos remanescentes agrupados pelo cartão.",
-                )
-            )
+        items.append(_card_item((rede_row,), matches))
+
+    for opera_row in list(remaining_opera):
+        matches = _amount_subset(
+            remaining_rede,
+            opera_row.amount,
+            lambda row: row.amount,
+            lambda row: _cards_compatible(opera_row, row),
+        )
+        if not matches:
+            continue
+        remaining_opera.remove(opera_row)
+        for match in matches:
+            remaining_rede.remove(match)
+        items.append(_card_item(matches, (opera_row,)))
+
+    items.extend(_card_item((row,), ()) for row in remaining_rede)
+    items.extend(_card_item((), (row,)) for row in remaining_opera)
     return items
+
+
+def _cards_compatible(opera: OperaPayment, rede: RedePayment) -> bool:
+    return (
+        not opera.card_last_four
+        or not rede.card_last_four
+        or opera.card_last_four == rede.card_last_four
+    )
+
+
+def _amount_subset[T](
+    rows: list[T],
+    target: Decimal,
+    amount: Callable[[T], Decimal],
+    compatible: Callable[[T], bool],
+) -> tuple[T, ...]:
+    candidates = [
+        row
+        for row in rows
+        if compatible(row) and Decimal("0") < amount(row) <= target + TOLERANCE
+    ]
+    for size in range(2, min(4, len(candidates)) + 1):
+        for selected in combinations(candidates, size):
+            if abs(sum((amount(row) for row in selected), Decimal("0")) - target) <= TOLERANCE:
+                return selected
+    return ()
+
+
+def _card_item(
+    rede_rows: tuple[RedePayment, ...], opera_rows: tuple[OperaPayment, ...]
+) -> ReconciliationItem:
+    expected = sum((row.amount for row in rede_rows), Decimal("0"))
+    opera_amount = sum((row.amount for row in opera_rows), Decimal("0"))
+    key_parts = [*(row.nsu for row in rede_rows), *(row.transaction_id for row in opera_rows)]
+    return _item(
+        category="CARTÃO",
+        comparison="Rede x OPERA",
+        key=" / ".join(filter(None, key_parts)) or "não informado",
+        external_ids=tuple(row.nsu for row in rede_rows),
+        opera_ids=tuple(row.transaction_id for row in opera_rows),
+        expected=expected,
+        opera_amount=opera_amount,
+        observation=(
+            "Correspondência por soma de lançamentos."
+            if len(rede_rows) > 1 or len(opera_rows) > 1
+            else ""
+        ),
+    )
 
 
 def _reconcile_cmflex(
@@ -156,7 +207,7 @@ def _reconcile_cmflex(
         opera_rows,
         lambda payment: (
             payment.transaction_id
-            if category == "PIX"
+            if category in {"DINHEIRO", "PIX"}
             else f"{payment.folio_number}011"
         ),
     )

@@ -64,6 +64,20 @@ class ReconciliationTests(TestCase):
             "0.00",
         )
 
+    def test_matches_cards_by_value_when_opera_has_no_card_number(self):
+        result = reconcile(
+            [
+                opera("1", "4", card=""),
+                opera("2", "4", card=""),
+                opera("3", "12", card=""),
+            ],
+            [],
+            [rede("nsu", "20", card="9876")],
+        )
+
+        self.assertEqual(result.matched_count, 1)
+        self.assertEqual(result.items[0].opera_ids, ("1", "2", "3"))
+
     def test_opera_refund_without_rede_counterpart_is_divergent(self):
         result = reconcile([opera("1", "-5.50")], [], [])
 
@@ -117,12 +131,27 @@ class ReconciliationTests(TestCase):
         self.assertEqual(deposit.expected_amount, Decimal("30"))
         self.assertEqual(deposit.opera_amount, Decimal("0"))
 
-    def test_ignores_non_reconciled_categories_and_unsuccessful_rede_rows(self):
-        ignored_opera = opera(
-            "cash-1", "10", code="9086", description="Dinheiro", card=""
+    def test_matches_cash_by_document_number(self):
+        result = reconcile(
+            [opera("cash-1", "10", code="9086", description="Dinheiro", card="")],
+            [
+                cmflex(
+                    "cash-1",
+                    "10",
+                    customer="DINHEIRO",
+                    document_type="MOVIMENTO DE CAIXA",
+                )
+            ],
+            [],
         )
+
+        self.assertEqual(result.matched_count, 1)
+        self.assertEqual(result.items[0].category, "DINHEIRO")
+
+    def test_ignores_non_reconciled_categories_and_unsuccessful_rede_rows(self):
+        ignored_opera = opera("other-1", "10", code="9999", description="Outro")
         ignored_cmflex = cmflex(
-            "cash-1", "10", customer="DINHEIRO", document_type="MOVIMENTO DE CAIXA"
+            "other-1", "10", customer="OUTRO", document_type="OUTRO"
         )
         ignored_rede = RedePayment(
             3, "negada", "débito", "Visa", "1234", "nsu", Decimal("10")

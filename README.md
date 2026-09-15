@@ -93,12 +93,26 @@ uv run python main.py conferencia-recebimentos `
   --rede "venda-rede.xlsx"
 ```
 
-O relatório do OPERA pode estar em XML ou XLSX. O resultado detalhado é salvo
-em `output/conferencia_recebimentos.json`. A
-conferência utiliza os últimos quatro dígitos e o valor para cartões, o número da
-transação para Pix, o número do fólio para valores a faturar e o total diário
-para depósitos. Valores positivos no relatório do OPERA são tratados como
-estornos.
+O relatório do OPERA pode estar em XML ou XLSX. Fora do modo diário, o resultado
+detalhado é salvo em `output/conferencia_recebimentos.json`. A conferência usa a
+Rede como fonte principal para cartões e compara valores individuais ou somas de
+lançamentos do OPERA. Dinheiro e Pix usam o número da transação, valores a
+faturar usam o número do fólio e depósitos usam o total diário. Valores positivos
+no relatório do OPERA são tratados como estornos.
+
+Para localizar automaticamente a planilha Rede do dia anterior, baixar OPERA e
+CMFlex quando ainda não estiverem disponíveis, conferir e arquivar os arquivos
+no padrão `MM - MÊS/DD`, configure
+`RECEBIMENTOS_REDE_DIR` e, opcionalmente, `RECEBIMENTOS_ARCHIVE_ROOT`:
+
+```powershell
+uv run python main.py conferencia-recebimentos --conferir-baixados
+```
+
+Cada pasta diária contém somente `Opera Magna DD.MM.xlsx`,
+`CmFlex Magna DD.MM.xlsx` e `Rede Magna DD.MM.xlsx`. Os valores conciliados são
+marcados nos próprios relatórios, seguindo o padrão das planilhas conferidas
+manualmente. O XML baixado do OPERA é convertido para Excel nessa etapa.
 
 ## GitHub Actions e runner local
 
@@ -156,6 +170,13 @@ Cadastre secrets exclusivos para esta automação:
 | `RECEBIMENTOS_CMFLEX_USERNAME` | Usuário do CMFlex. |
 | `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha do CMFlex. |
 | `RECEBIMENTOS_CMFLEX_COMPANY` | Empresa do CMFlex, inicialmente `MAGNA`. |
+
+Cadastre também as seguintes Variables do repositório:
+
+| Variable | Finalidade |
+| --- | --- |
+| `RECEBIMENTOS_REDE_DIR` | Pasta onde o setor disponibiliza a planilha Rede. |
+| `RECEBIMENTOS_ARCHIVE_ROOT` | Raiz das pastas mensais e diárias das conferências. |
 
 A execução manual está em
 **Actions → Conferência de recebimentos → Run workflow**. O hotel é obtido

@@ -33,13 +33,21 @@ class FakeElement:
     def __init__(self) -> None:
         self.inputs: list[tuple[str, bool]] = []
         self.click_count = 0
+        self.clear_count = 0
+        self.js_clear_count = 0
         self.value = ""
 
     def input(self, value: str, *, clear: bool) -> None:
         self.inputs.append((value, clear))
         self.value = value
 
-    def run_js(self, _script: str) -> None:
+    def run_js(self, script: str) -> None:
+        if "setter.call(this, '')" in script:
+            self.js_clear_count += 1
+            self.value = ""
+
+    def clear(self) -> None:
+        self.clear_count += 1
         self.value = ""
 
     def property(self, name: str):
@@ -105,6 +113,31 @@ class FakeDownloadElement:
 
 
 class OperaBrowserTests(TestCase):
+    def test_filter_clear_retries_when_opera_restores_previous_value(self):
+        class RestoredOnceElement(FakeElement):
+            def __init__(self) -> None:
+                super().__init__()
+                self.value = "10012381"
+                self.restore_once = True
+
+            def property(self, name: str):
+                if name == "value" and self.restore_once:
+                    self.restore_once = False
+                    self.value = "10012381"
+                return super().property(name)
+
+        field = RestoredOnceElement()
+        with (
+            patch.object(opera_browser, "find_visible_any", return_value=field),
+            patch.object(opera_browser, "sleep"),
+        ):
+            opera_browser._clear_filter_field(
+                FakeTab({}), ("xpath://input",), "Campo Cashier", None
+            )
+
+        self.assertEqual(field.js_clear_count, 2)
+        self.assertEqual(field.value, "")
+
     def test_dynamic_selector_search_disables_per_selector_implicit_wait(self):
         class States:
             is_displayed = True
@@ -336,7 +369,9 @@ class OperaBrowserTests(TestCase):
 
         with TemporaryDirectory() as directory:
             downloaded = Path(directory) / "opera_recebimentos_2026-09-13.xml"
-            downloaded.touch()
+            downloaded.write_text(
+                "<FINPAYMENTS><G_TRANSACTION /></FINPAYMENTS>", encoding="utf-8"
+            )
             mission = FakeMission(downloaded)
             download_button = FakeDownloadElement(mission)
             with (
@@ -346,7 +381,10 @@ class OperaBrowserTests(TestCase):
                     side_effect=[
                         report_name,
                         report_date_field,
+                        report_date_field,
                         filter_one,
+                        filter_one,
+                        filter_two,
                         filter_two,
                         download_button,
                     ],
@@ -363,9 +401,14 @@ class OperaBrowserTests(TestCase):
 
         self.assertEqual(result, downloaded)
         self.assertEqual(report_name.inputs, [("CASH", True)])
-        self.assertEqual(report_date_field.inputs, [("13/09/2026", True)])
+        self.assertEqual(
+            report_date_field.inputs,
+            [("13/09/2026", True)],
+        )
         self.assertEqual(filter_one.inputs, [])
         self.assertEqual(filter_two.inputs, [])
+        self.assertEqual(filter_one.clear_count, 0)
+        self.assertEqual(filter_two.clear_count, 0)
         self.assertEqual(
             opera_browser.REPORT_NAME_SELECTORS[0],
             "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[2]/span/div/div[2]/div/div[2]/div[2]/span/span/span[2]/span[2]/span/input",
@@ -425,8 +468,29 @@ class OperaBrowserTests(TestCase):
                 ),
                 call(
                     tab,
+                    opera_browser.REPORT_DATE_SELECTORS,
+                    "Data do relatório",
+                    None,
+                    timeout=45,
+                ),
+                call(
+                    tab,
                     opera_browser.FILTER_FIELD_SELECTORS[0],
                     "Campo de filtro 1",
+                    None,
+                    timeout=30,
+                ),
+                call(
+                    tab,
+                    opera_browser.FILTER_FIELD_SELECTORS[0],
+                    "Campo de filtro 1",
+                    None,
+                    timeout=30,
+                ),
+                call(
+                    tab,
+                    opera_browser.FILTER_FIELD_SELECTORS[1],
+                    "Campo de filtro 2",
                     None,
                     timeout=30,
                 ),

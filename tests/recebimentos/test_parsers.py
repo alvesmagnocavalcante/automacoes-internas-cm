@@ -10,6 +10,7 @@ from automations.recebimentos.parsers import (
     decimal_value,
     optional_decimal_value,
     parse_opera,
+    parse_rede,
 )
 
 
@@ -72,3 +73,45 @@ class ParserTests(TestCase):
         self.assertEqual(payments[0].folio_number, "456")
         self.assertEqual(payments[0].card_last_four, "3223")
         self.assertEqual(payments[0].amount, Decimal("81"))
+
+    def test_opera_xlsx_accepts_grp_first_as_transaction_code(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "opera.xlsx"
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(
+                ["GRP_FIRST", "TRX_NO", "TRX_DESC", "GUEST_ACCOUNT_CREDIT"]
+            )
+            sheet.append([9086, 123, "Dinheiro", -10])
+            workbook.save(path)
+
+            payments = parse_opera(path)
+
+        self.assertEqual(payments[0].transaction_code, "9086")
+
+    def test_rede_accepts_historical_file_without_updated_amount(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "rede.xlsx"
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["EXTRATO"])
+            sheet.append(
+                [
+                    "status da venda",
+                    "valor da venda original",
+                    "modalidade",
+                    "bandeira",
+                    "NSU/CV",
+                    "número da autorização (Auto)",
+                    "número do cartão",
+                    "id carteira digital",
+                ]
+            )
+            sheet.append(
+                ["aprovada", 20, "crédito", "Visa", "1", "2", "****1234", "-"]
+            )
+            workbook.save(path)
+
+            payments = parse_rede(path)
+
+        self.assertEqual(payments[0].amount, Decimal("20"))
