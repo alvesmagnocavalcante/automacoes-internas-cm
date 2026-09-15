@@ -25,19 +25,16 @@ uv run python main.py --list
 ```text
 .
 ├── .github/workflows/          # Workflows do GitHub Actions
-│   └── booking-opera.yml
+│   ├── booking-opera.yml
+│   └── conferencia-recebimentos.yml
 ├── automations/
 │   ├── base.py                 # Contrato comum das automações
 │   ├── registry.py             # Registro central de automações
-│   └── booking_opera/
-│       ├── cli.py              # Interface de linha de comando
-│       ├── browser.py          # Integração com Booking e OPERA
-│       ├── domain.py           # Regras de negócio da conciliação
-│       ├── models.py           # Configurações e modelos
-│       ├── reports.py          # Geração de relatórios
-│       └── service.py          # Orquestração do processo
+│   ├── booking_opera/          # Conciliação Booking × OPERA
+│   └── recebimentos/           # Conferência OPERA, CMFlex e Rede
 ├── tests/
-│   └── booking_opera/          # Testes da automação
+│   ├── booking_opera/
+│   └── recebimentos/
 ├── main.py                     # Ponto de entrada
 ├── pyproject.toml              # Projeto e dependências Python
 └── uv.lock                     # Versões fixadas das dependências
@@ -71,8 +68,8 @@ identificador exibe as opções disponíveis e encerra com código de erro.
 ### Conferência de recebimentos
 
 Para testar somente o login, a seleção do hotel e o download do relatório
-Pagamentos Financeiros do OPERA, mantenha `OPERA_USERNAME`, `OPERA_PASSWORD` e
-`OPERA_HOTEL` no arquivo `.env` e execute:
+Pagamentos Financeiros do OPERA, preencha `RECEBIMENTOS_OPERA_USERNAME`,
+`RECEBIMENTOS_OPERA_PASSWORD` e `RECEBIMENTOS_OPERA_HOTEL` no `.env` e execute:
 
 ```powershell
 uv run python main.py conferencia-recebimentos --baixar-opera
@@ -98,9 +95,9 @@ estornos.
 
 ## GitHub Actions e runner local
 
-O workflow da Booking × OPERA está definido em
-`.github/workflows/booking-opera.yml` e é executado exclusivamente em um runner
-com os rótulos:
+Os workflows ficam em `.github/workflows/booking-opera.yml` e
+`.github/workflows/conferencia-recebimentos.yml`. Ambos usam exclusivamente um
+runner com os rótulos:
 
 ```text
 self-hosted, windows, x64
@@ -135,8 +132,23 @@ Cadastre os seguintes secrets em
 A execução manual está disponível em
 **Actions → Conciliação Booking x OPERA → Run workflow**.
 
-O workflow também é executado de segunda a sexta-feira às 10:00 UTC (07:00 no
-horário de Brasília, UTC-3).
+O agendamento permanece desabilitado no workflow; a execução atual é manual.
+
+## Configuração da conferência de recebimentos
+
+Cadastre secrets exclusivos para esta automação:
+
+| Secret | Finalidade |
+| --- | --- |
+| `RECEBIMENTOS_OPERA_USERNAME` | Usuário do OPERA. |
+| `RECEBIMENTOS_OPERA_PASSWORD` | Senha do OPERA. |
+| `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort. |
+
+A execução manual está em
+**Actions → Conferência de recebimentos → Run workflow**. Nesta etapa, o
+workflow baixa o relatório do OPERA e publica o artefato
+`conferencia-recebimentos-<número-da-execução>`. O download do CMFlex será
+incorporado posteriormente.
 
 ### Arquivos gerados
 

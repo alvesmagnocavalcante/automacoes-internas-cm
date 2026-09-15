@@ -19,7 +19,6 @@ from DrissionPage.errors import (
     ElementLostError,
     NoRectError,
 )
-from psutil import AccessDenied, NoSuchProcess, Process
 
 OPERA_URL = (
     "https://mtcu7.oraclehospitality.us-ashburn-1.ocs.oraclecloud.com/"
@@ -53,10 +52,8 @@ HOTEL_RESULT_SELECTORS = (
     HOTEL_RESULT_SELECTOR,
     'xpath://*[contains(@id, "odec_axn_br_axns_pstv_i:0") and contains(@id, "odec_axn_br_axn_pstv")]',
 )
-REPORTS_MENU_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:7:odec_drpmn_mb_mn"]/div/table/tbody/tr/td[2]'
-REPORTS_ANALYTICS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:7:odec_drpmn_mb_mn_grp:1:odec_drpmn_mb_mn_itm"]'
 REPORTS_MENU_SELECTORS = (
-    REPORTS_MENU_SELECTOR,
+    'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:7:odec_drpmn_mb_mn"]/div/table/tbody/tr/td[2]',
     'xpath://td[normalize-space()="Reports" or normalize-space()="Relatórios"]',
 )
 # Em larguras menores o OPERA abre primeiro um painel com a linha "Reports >".
@@ -66,48 +63,37 @@ REPORTS_FLYOUT_SELECTORS = (
     'xpath://td[normalize-space()="Reports" or normalize-space()="Relatórios"]',
 )
 REPORTS_ANALYTICS_SELECTORS = (
-    REPORTS_ANALYTICS_SELECTOR,
+    'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:7:odec_drpmn_mb_mn_grp:1:odec_drpmn_mb_mn_itm"]',
     'xpath://*[self::a or self::td or self::span or self::div][normalize-space()="Reports and Analytics" or normalize-space()="Reports & Analytics" or normalize-space()="Relatórios e Análises"]',
 )
-REPORT_NAME_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:fe2:reportName:odec_it_it::content"]'
-REPORT_NAME_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[2]/span/div/div[2]/div/div[2]/div[2]/span/span/span[2]/span[2]/span/input"
 REPORT_NAME_SELECTORS = (
-    REPORT_NAME_ABSOLUTE_SELECTOR,
-    REPORT_NAME_SELECTOR,
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[2]/span/div/div[2]/div/div[2]/div[2]/span/span/span[2]/span[2]/span/input",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:fe2:reportName:odec_it_it::content"]',
     'xpath://input[contains(@id, "reportName") and contains(@id, "::content")]',
     'xpath://label[normalize-space()="Report Name"]/following::input[1]',
 )
-REPORT_SEARCH_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:odec_srch_swtchr_advncd_srch_btn"]'
-REPORT_SEARCH_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[3]/span/span[2]/div"
 REPORT_SEARCH_SELECTORS = (
-    REPORT_SEARCH_ABSOLUTE_SELECTOR,
-    REPORT_SEARCH_SELECTOR,
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[3]/span/span[2]/div",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:odec_srch_swtchr_advncd_srch_btn"]',
     'xpath://button[normalize-space()="Search" or normalize-space()="Buscar"]',
 )
-FINANCIAL_PAYMENTS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:pc1:t1:3:c4"]'
-FINANCIAL_PAYMENTS_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[6]/span/span[1]/span/div/div/div/div/div/div[2]/div/div[2]/table/tbody/tr[4]/td[1]/div/table/tbody/tr/td[3]"
 FINANCIAL_PAYMENTS_SELECTORS = (
-    FINANCIAL_PAYMENTS_ABSOLUTE_SELECTOR,
-    FINANCIAL_PAYMENTS_SELECTOR,
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[6]/span/span[1]/span/div/div/div/div/div/div[2]/div/div[2]/table/tbody/tr[4]/td[1]/div/table/tbody/tr/td[3]",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:pc1:t1:3:c4"]',
     'xpath://*[contains(normalize-space(), "Financial Payments") or contains(normalize-space(), "Pagamentos Financeiros")]',
 )
-EDIT_REPORT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:actionBar:odec_axn_br_axns_pstv_i:2:odec_axn_br_axn_pstv"]'
-EDIT_REPORT_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[7]/span/div/div/span/span/span[2]/span[1]/span/div[3]"
 EDIT_REPORT_SELECTORS = (
-    EDIT_REPORT_ABSOLUTE_SELECTOR,
-    EDIT_REPORT_SELECTOR,
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[7]/span/div/div/span/span/span[2]/span[1]/span/div[3]",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:actionBar:odec_axn_br_axns_pstv_i:2:odec_axn_br_axn_pstv"]',
     'xpath://button[normalize-space()="Edit" or normalize-space()="Editar"]',
 )
-CALENDAR_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:fe0:mdmprm_695718131:oc_mdm_rptpm_id1:odec_dt_it"]/button'
-CALENDAR_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/button"
 CALENDAR_SELECTORS = (
-    CALENDAR_ABSOLUTE_SELECTOR,
-    CALENDAR_SELECTOR,
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/button",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:fe0:mdmprm_695718131:oc_mdm_rptpm_id1:odec_dt_it"]/button',
     'xpath://button[contains(@aria-label, "calendar") or contains(@title, "calendar") or contains(@aria-label, "calendário") or contains(@title, "calendário")]',
 )
-CURRENT_DAY_SELECTOR = "xpath:/html/body/div[5]/button"
 CURRENT_DAY_SELECTORS = (
-    CURRENT_DAY_SELECTOR,
+    "xpath:/html/body/div[5]/button",
     "xpath:/html/body/div[6]/button",
     'xpath://button[normalize-space()="Today" or normalize-space()="Hoje"]',
 )
@@ -121,29 +107,22 @@ FILTER_FIELD_SELECTORS = (
         'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:j_idt1220:mdmprm_695718131:oc_mdm_rptpm_lov1:odec_lov_itLovetext::content"]',
     ),
 )
-GENERATE_REPORT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:actionBar:odec_axn_br_axns_pstv_i:0:odec_axn_br_axn_pstv"]'
-GENERATE_REPORT_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[5]/span/div/div/span/span/span[3]/span[1]/span/div[1]"
 GENERATE_REPORT_SELECTORS = (
-    GENERATE_REPORT_ABSOLUTE_SELECTOR,
-    GENERATE_REPORT_SELECTOR,
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[5]/span/div/div/span/span/span[3]/span[1]/span/div[1]",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:actionBar:odec_axn_br_axns_pstv_i:0:odec_axn_br_axn_pstv"]',
 )
-REPORT_FORMAT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:fe8:sor1:odec_sor_sor::content"]/fieldset/div[3]/span/label'
-REPORT_FORMAT_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/div/div[2]/div[1]/div[1]/table/tbody/tr/td/div/div/table/tbody/tr[2]/td[2]/div/div[2]/div/div[2]/div/span/span/span[2]/span[2]/table/tbody/tr/td[2]/div/fieldset/div[3]/span/label"
 REPORT_FORMAT_SELECTORS = (
-    REPORT_FORMAT_ABSOLUTE_SELECTOR,
-    REPORT_FORMAT_SELECTOR,
+    "xpath:/html/body/div[1]/form/div/div[2]/div[1]/div[1]/table/tbody/tr/td/div/div/table/tbody/tr[2]/td[2]/div/div[2]/div/div[2]/div/span/span/span[2]/span[2]/table/tbody/tr/td[2]/div/fieldset/div[3]/span/label",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:fe8:sor1:odec_sor_sor::content"]/fieldset/div[3]/span/label',
 )
-FINAL_DOWNLOAD_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:ab3:odec_axn_br_axns_pstv_i:0:odec_axn_br_axn_pstv"]'
-FINAL_DOWNLOAD_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/div/div[2]/div[1]/div[1]/table/tbody/tr/td/div/div/table/tbody/tr[3]/td[2]/table/tbody/tr/td[1]/span/span[1]/span[2]/div"
 FINAL_DOWNLOAD_SELECTORS = (
-    FINAL_DOWNLOAD_ABSOLUTE_SELECTOR,
-    FINAL_DOWNLOAD_SELECTOR,
+    "xpath:/html/body/div[1]/form/div/div[2]/div[1]/div[1]/table/tbody/tr/td/div/div/table/tbody/tr[3]/td[2]/table/tbody/tr/td[1]/span/span[1]/span[2]/div",
+    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:ab3:odec_axn_br_axns_pstv_i:0:odec_axn_br_axn_pstv"]',
 )
 
 POLL_INTERVAL = 0.25
 ACTION_SETTLE_SECONDS = 0.25
 PAGE_SETTLE_SECONDS = 0.75
-RESULT_SETTLE_SECONDS = 0.75
 OPERA_QUERY_RETRIES = 3
 TRANSIENT_BROWSER_ERRORS = (ContextLostError, ElementLostError, NoRectError)
 
@@ -254,7 +233,9 @@ def find_visible_any(
         _checkpoint(cancel)
         for selector in selectors:
             try:
-                elements = tab.eles(selector)
+                # O laço externo controla o timeout total. Desativa a espera
+                # implícita em cada seletor para evitar atrasos acumulados.
+                elements = tab.eles(selector, timeout=0)
             except TRANSIENT_BROWSER_ERRORS:
                 continue
             for element in elements:
@@ -433,7 +414,7 @@ def select_hotel(
         HOTEL_SEARCH_SELECTORS,
         "Pesquisa do hotel/resort",
         cancel,
-        settle_seconds=RESULT_SETTLE_SECONDS,
+        settle_seconds=PAGE_SETTLE_SECONDS,
     )
     click_visible_any(
         tab,
@@ -465,6 +446,8 @@ def _start_report_download(
             mission = download_button.click.to_download(
                 save_path=target_dir,
                 rename=f"opera_recebimentos_{report_date:%Y-%m-%d}",
+                # O OPERA inicia o arquivo em uma nova janela.
+                new_tab=True,
                 by_js=True,
                 timeout=60,
             )
@@ -477,6 +460,34 @@ def _start_report_download(
         "O botão final do OPERA foi substituído durante o clique e o download não "
         f"iniciou após {OPERA_QUERY_RETRIES} tentativas."
     ) from last_error
+
+
+def _wait_for_report_download(
+    mission: Any,
+    cancel: Event | None,
+    *,
+    timeout: float = 180,
+) -> Path:
+    """Aguarda sem o wait(timeout), que sempre espera todo o prazo na v4.1.1.4."""
+    deadline = monotonic() + timeout
+    while not mission.is_done:
+        _checkpoint(cancel)
+        if monotonic() >= deadline:
+            try:
+                mission.cancel()
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"O download do relatório OPERA não terminou em {timeout:g} segundos."
+            )
+        sleep(0.1)
+
+    downloaded = mission.final_path
+    if not downloaded:
+        raise RuntimeError(
+            f"O download do relatório OPERA terminou com estado {mission.state!r}."
+        )
+    return Path(downloaded)
 
 
 def download_financial_payments(
@@ -550,13 +561,7 @@ def download_financial_payments(
 
     report_date = run_date or date.today()
     mission = _start_report_download(tab, target_dir, report_date, cancel)
-    downloaded = mission.wait(show=False, timeout=180, cancel_if_timeout=True)
-    if not downloaded:
-        raise RuntimeError(
-            "O download do relatório OPERA não terminou em 180 segundos."
-        )
-
-    downloaded_path = Path(downloaded)
+    downloaded_path = _wait_for_report_download(mission, cancel)
     if not downloaded_path.is_file():
         raise RuntimeError(
             f"O OPERA informou o download, mas o arquivo não existe: {downloaded_path}"
@@ -573,38 +578,18 @@ def run_opera_download(
     browser_factory: Callable[[], Any] | None = None,
 ) -> Path:
     """Executa login, seleção do hotel e download, sempre fechando o navegador."""
-    browser = None
+    browser = (browser_factory or create_browser)()
     try:
-        browser = (browser_factory or create_browser)()
         tab = login_opera(browser, config, cancel)
         select_hotel(tab, hotel_name, cancel)
         return download_financial_payments(tab, download_dir, cancel)
     finally:
-        if browser is not None:
-            _quit_browser(browser)
+        _quit_browser(browser)
 
 
 def _quit_browser(browser: Any) -> None:
-    """Fecha somente a árvore de processos do Chrome criado pela RPA."""
-    processes = []
-    process_id = getattr(browser, "process_id", None)
-    if process_id:
-        try:
-            root_process = Process(process_id)
-            processes = [*root_process.children(recursive=True), root_process]
-        except (AccessDenied, NoSuchProcess):
-            pass
-
+    """Fecha todas as janelas da instância exclusiva criada pela RPA."""
     try:
-        browser.quit(timeout=5, force=True)
+        browser.quit(timeout=1, force=False)
     except Exception:
         pass
-
-    # O download do OPERA pode abrir outra janela no mesmo processo. Se o CDP
-    # perder essa janela, encerra apenas os processos capturados acima.
-    for process in processes:
-        try:
-            if process.is_running():
-                process.kill()
-        except (AccessDenied, NoSuchProcess):
-            pass

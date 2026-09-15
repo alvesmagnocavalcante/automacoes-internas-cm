@@ -1,5 +1,5 @@
 [project]
-name = "booking-opera"
+name = "automacoes-internas-cm"
 version = "0.1.0"
 description = "Automações internas executadas por GitHub Actions em runner local"
 readme = "README.md"

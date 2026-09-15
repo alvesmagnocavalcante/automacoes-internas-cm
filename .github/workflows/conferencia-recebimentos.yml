@@ -1,0 +1,60 @@
+name: Conferência de recebimentos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conferencia-recebimentos
+  cancel-in-progress: false
+
+jobs:
+  download-opera:
+    # O runner deve estar em uma sessão interativa para exibir o Chrome.
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      PYTHONUTF8: "1"
+      RECEBIMENTOS_HEADLESS: "false"
+      RECEBIMENTOS_OPERA_USERNAME: ${{ secrets.RECEBIMENTOS_OPERA_USERNAME }}
+      RECEBIMENTOS_OPERA_PASSWORD: ${{ secrets.RECEBIMENTOS_OPERA_PASSWORD }}
+      RECEBIMENTOS_OPERA_HOTEL: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL }}
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Instalar uv e Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Instalar dependências
+        run: uv sync --frozen
+
+      - name: Validar automação
+        run: uv run python -m unittest tests.recebimentos.test_opera_browser -v
+
+      - name: Limpar relatório anterior
+        shell: powershell
+        run: |
+          $reportDir = Join-Path $env:GITHUB_WORKSPACE "output\recebimentos"
+          if (Test-Path -LiteralPath $reportDir) {
+            Remove-Item -LiteralPath $reportDir -Recurse -Force
+          }
+
+      - name: Baixar relatório do OPERA
+        run: uv run python main.py conferencia-recebimentos --baixar-opera
+
+      - name: Publicar relatório
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: conferencia-recebimentos-${{ github.run_number }}
+          path: output/recebimentos/
+          if-no-files-found: warn
+          retention-days: 30

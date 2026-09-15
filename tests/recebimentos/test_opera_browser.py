@@ -72,11 +72,13 @@ class FakeBrowser:
 class FakeMission:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self.wait_args = None
+        self.is_done = True
+        self.final_path = str(path)
+        self.state = "completed"
+        self.cancel_count = 0
 
-    def wait(self, **kwargs):
-        self.wait_args = kwargs
-        return str(self.path)
+    def cancel(self) -> None:
+        self.cancel_count += 1
 
 
 class FakeDownloadClick:
@@ -95,6 +97,32 @@ class FakeDownloadElement:
 
 
 class OperaBrowserTests(TestCase):
+    def test_dynamic_selector_search_disables_per_selector_implicit_wait(self):
+        class States:
+            is_displayed = True
+
+        class Element:
+            states = States()
+
+        class Tab:
+            def __init__(self) -> None:
+                self.calls = []
+
+            def eles(self, selector, *, timeout):
+                self.calls.append((selector, timeout))
+                return [Element()]
+
+        tab = Tab()
+        result = opera_browser.find_visible_any(
+            tab,
+            ("xpath://button",),
+            "Botão",
+            timeout=1,
+        )
+
+        self.assertIsInstance(result, Element)
+        self.assertEqual(tab.calls, [("xpath://button", 0)])
+
     def test_falls_back_to_javascript_click_when_element_has_no_dimensions(self):
         class Click:
             def __init__(self) -> None:
@@ -278,7 +306,7 @@ class OperaBrowserTests(TestCase):
                     HOTEL_SEARCH_SELECTORS,
                     "Pesquisa do hotel/resort",
                     None,
-                    settle_seconds=opera_browser.RESULT_SETTLE_SECONDS,
+                    settle_seconds=opera_browser.PAGE_SETTLE_SECONDS,
                 ),
                 call(
                     tab,
@@ -308,9 +336,7 @@ class OperaBrowserTests(TestCase):
                     "find_visible_any",
                     side_effect=[report_name, filter_one, filter_two, download_button],
                 ) as find_any,
-                patch.object(
-                    opera_browser, "open_reports_and_analytics"
-                ) as navigation,
+                patch.object(opera_browser, "open_reports_and_analytics") as navigation,
                 patch.object(opera_browser, "click_visible_any") as click_any,
                 patch.object(opera_browser, "sleep"),
             ):
@@ -468,14 +494,32 @@ class OperaBrowserTests(TestCase):
             {
                 "save_path": Path(directory).resolve(),
                 "rename": "opera_recebimentos_2026-09-14",
+                "new_tab": True,
                 "by_js": True,
                 "timeout": 60,
             },
         )
-        self.assertEqual(
-            mission.wait_args,
-            {"show": False, "timeout": 180, "cancel_if_timeout": True},
-        )
+        self.assertEqual(mission.cancel_count, 0)
+
+    def test_download_wait_returns_immediately_when_mission_is_done(self):
+        mission = FakeMission(Path("opera.xml"))
+
+        with patch.object(opera_browser, "sleep") as wait:
+            result = opera_browser._wait_for_report_download(mission, None)
+
+        self.assertEqual(result, Path("opera.xml"))
+        wait.assert_not_called()
+
+    def test_download_wait_cancels_mission_on_timeout(self):
+        mission = FakeMission(Path("opera.xml"))
+        mission.is_done = False
+        with (
+            patch.object(opera_browser, "monotonic", side_effect=[0, 181]),
+            self.assertRaisesRegex(RuntimeError, "180 segundos"),
+        ):
+            opera_browser._wait_for_report_download(mission, None)
+
+        self.assertEqual(mission.cancel_count, 1)
 
     def test_relocates_download_button_when_opera_replaces_element(self):
         stale_mission = FakeMission(Path("stale.xml"))
@@ -539,35 +583,4 @@ class OperaBrowserTests(TestCase):
         hotel.assert_called_once_with("tab", "MAGNA - Magna Praia Hotel", None)
         download.assert_called_once_with("tab", Path("output"), None)
         self.assertEqual(browser.quit_count, 1)
-        self.assertEqual(browser.quit_options, {"timeout": 5, "force": True})
-
-    def test_kills_browser_process_tree_when_window_survives_quit(self):
-        class Browser:
-            process_id = 123
-
-            def quit(self, **_options) -> None:
-                pass
-
-        class Process:
-            def __init__(self, children=()) -> None:
-                self._children = list(children)
-                self.kill_count = 0
-
-            def children(self, *, recursive: bool):
-                self.recursive = recursive
-                return self._children
-
-            def is_running(self) -> bool:
-                return True
-
-            def kill(self) -> None:
-                self.kill_count += 1
-
-        child = Process()
-        root = Process([child])
-        with patch.object(opera_browser, "Process", return_value=root):
-            opera_browser._quit_browser(Browser())
-
-        self.assertTrue(root.recursive)
-        self.assertEqual(child.kill_count, 1)
-        self.assertEqual(root.kill_count, 1)
+        self.assertEqual(browser.quit_options, {"timeout": 1, "force": False})

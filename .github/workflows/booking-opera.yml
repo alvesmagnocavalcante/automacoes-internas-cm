@@ -2,9 +2,6 @@ name: Conciliação Booking x OPERA
 
 on:
   workflow_dispatch:
-  schedule:
-    # 07:00 em Brasília (UTC-3). Cron do GitHub Actions sempre usa UTC.
-    # - cron: "0 10 * * 1-5"
 
 permissions:
   contents: read
