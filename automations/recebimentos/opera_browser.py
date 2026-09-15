@@ -19,6 +19,7 @@ from DrissionPage.errors import (
     ElementLostError,
     NoRectError,
 )
+from psutil import AccessDenied, NoSuchProcess, Process
 
 OPERA_URL = (
     "https://mtcu7.oraclehospitality.us-ashburn-1.ocs.oraclecloud.com/"
@@ -54,6 +55,20 @@ HOTEL_RESULT_SELECTORS = (
 )
 REPORTS_MENU_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:7:odec_drpmn_mb_mn"]/div/table/tbody/tr/td[2]'
 REPORTS_ANALYTICS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:7:odec_drpmn_mb_mn_grp:1:odec_drpmn_mb_mn_itm"]'
+REPORTS_MENU_SELECTORS = (
+    REPORTS_MENU_SELECTOR,
+    'xpath://td[normalize-space()="Reports" or normalize-space()="Relatórios"]',
+)
+# Em larguras menores o OPERA abre primeiro um painel com a linha "Reports >".
+# A seta dessa linha precisa ser acionada para o submenu aparecer.
+REPORTS_FLYOUT_SELECTORS = (
+    'xpath://td[normalize-space()="Reports" or normalize-space()="Relatórios"]/following-sibling::td[1]',
+    'xpath://td[normalize-space()="Reports" or normalize-space()="Relatórios"]',
+)
+REPORTS_ANALYTICS_SELECTORS = (
+    REPORTS_ANALYTICS_SELECTOR,
+    'xpath://*[self::a or self::td or self::span or self::div][normalize-space()="Reports and Analytics" or normalize-space()="Reports & Analytics" or normalize-space()="Relatórios e Análises"]',
+)
 REPORT_NAME_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:fe2:reportName:odec_it_it::content"]'
 REPORT_NAME_ABSOLUTE_SELECTOR = "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[2]/span/div/div[2]/div/div[2]/div[2]/span/span/span[2]/span[2]/span/input"
 REPORT_NAME_SELECTORS = (
@@ -217,54 +232,14 @@ def _checkpoint(cancel: Event | None) -> None:
         )
 
 
-def find_visible(
-    tab: Any,
-    selector: str,
-    description: str,
-    cancel: Event | None = None,
-    timeout: int = 30,
-) -> Any:
-    deadline = monotonic() + timeout
-    while monotonic() < deadline:
-        _checkpoint(cancel)
-        try:
-            elements = tab.eles(selector)
-        except TRANSIENT_BROWSER_ERRORS:
-            sleep(POLL_INTERVAL)
-            continue
-        for element in elements:
-            try:
-                if element.states.is_displayed:
-                    return element
-            except TRANSIENT_BROWSER_ERRORS:
-                continue
-        sleep(POLL_INTERVAL)
-    raise RuntimeError(f"{description} não encontrado.")
-
-
-def click_visible(
-    tab: Any,
-    selector: str,
-    description: str,
-    cancel: Event | None = None,
-    *,
-    settle_seconds: float = ACTION_SETTLE_SECONDS,
-    timeout: int = 30,
-) -> None:
-    deadline = monotonic() + timeout
-    while monotonic() < deadline:
-        _checkpoint(cancel)
-        try:
-            element = find_visible(tab, selector, description, cancel, timeout=5)
-            element.scroll.to_see()
-            sleep(ACTION_SETTLE_SECONDS)
-            element.click()
-            if settle_seconds:
-                sleep(settle_seconds)
-            return
-        except TRANSIENT_BROWSER_ERRORS:
-            sleep(POLL_INTERVAL)
-    raise RuntimeError(f"{description} permaneceu sem dimensão.")
+def _click_rendered_or_by_js(element: Any) -> None:
+    """Clica normalmente e contorna controles sem caixa renderizada."""
+    try:
+        element.scroll.to_see()
+        sleep(ACTION_SETTLE_SECONDS)
+        element.click()
+    except NoRectError:
+        element.click(by_js=True)
 
 
 def find_visible_any(
@@ -306,15 +281,56 @@ def click_visible_any(
         _checkpoint(cancel)
         try:
             element = find_visible_any(tab, selectors, description, cancel, timeout=5)
-            element.scroll.to_see()
-            sleep(ACTION_SETTLE_SECONDS)
-            element.click()
+            _click_rendered_or_by_js(element)
             if settle_seconds:
                 sleep(settle_seconds)
             return
         except (RuntimeError, *TRANSIENT_BROWSER_ERRORS):
             sleep(POLL_INTERVAL)
     raise RuntimeError(f"{description} não respondeu ao clique.")
+
+
+def open_reports_and_analytics(tab: Any, cancel: Event | None = None) -> None:
+    """Abre relatórios tanto na barra completa quanto no menu responsivo."""
+    click_visible_any(
+        tab,
+        REPORTS_MENU_SELECTORS,
+        "Menu Relatórios",
+        cancel,
+        settle_seconds=PAGE_SETTLE_SECONDS,
+        timeout=45,
+    )
+
+    # No layout largo, o item final fica disponível imediatamente. No layout
+    # responsivo, aparece antes a linha intermediária "Reports >".
+    try:
+        click_visible_any(
+            tab,
+            REPORTS_ANALYTICS_SELECTORS,
+            "Relatórios e análises",
+            cancel,
+            settle_seconds=PAGE_SETTLE_SECONDS,
+            timeout=4,
+        )
+    except RuntimeError:
+        click_visible_any(
+            tab,
+            REPORTS_FLYOUT_SELECTORS,
+            "Submenu Reports",
+            cancel,
+            settle_seconds=ACTION_SETTLE_SECONDS,
+            timeout=20,
+        )
+        click_visible_any(
+            tab,
+            REPORTS_ANALYTICS_SELECTORS,
+            "Relatórios e análises",
+            cancel,
+            settle_seconds=PAGE_SETTLE_SECONDS,
+            timeout=30,
+        )
+
+    tab.wait.doc_loaded(timeout=60)
 
 
 def login_opera(
@@ -367,17 +383,17 @@ def open_hotel_search(tab: Any, cancel: Event | None = None) -> Any:
     for _attempt in range(OPERA_QUERY_RETRIES):
         _checkpoint(cancel)
         try:
-            click_visible(
+            click_visible_any(
                 tab,
-                PROFILE_SELECTOR,
+                (PROFILE_SELECTOR,),
                 "Perfil do OPERA",
                 cancel,
                 settle_seconds=PAGE_SETTLE_SECONDS,
                 timeout=45,
             )
-            click_visible(
+            click_visible_any(
                 tab,
-                CHANGE_LOCATION_SELECTOR,
+                (CHANGE_LOCATION_SELECTOR,),
                 "Alteração de localização",
                 cancel,
                 settle_seconds=PAGE_SETTLE_SECONDS,
@@ -474,19 +490,7 @@ def download_financial_payments(
     target_dir = download_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    navigation = (
-        (REPORTS_MENU_SELECTOR, "Menu Relatórios"),
-        (REPORTS_ANALYTICS_SELECTOR, "Relatórios e análises"),
-    )
-    for selector, description in navigation:
-        click_visible(
-            tab,
-            selector,
-            description,
-            cancel,
-            settle_seconds=PAGE_SETTLE_SECONDS,
-            timeout=45,
-        )
+    open_reports_and_analytics(tab, cancel)
 
     report_name = find_visible_any(
         tab,
@@ -498,46 +502,27 @@ def download_financial_payments(
     report_name.input("CASH", clear=True)
     sleep(ACTION_SETTLE_SECONDS)
 
-    click_visible_any(
-        tab,
-        REPORT_SEARCH_SELECTORS,
-        "Busca de relatórios",
-        cancel,
-        settle_seconds=PAGE_SETTLE_SECONDS,
-        timeout=45,
+    report_actions = (
+        (REPORT_SEARCH_SELECTORS, "Busca de relatórios", PAGE_SETTLE_SECONDS, 45),
+        (
+            FINANCIAL_PAYMENTS_SELECTORS,
+            "Relatório Pagamentos Financeiros",
+            PAGE_SETTLE_SECONDS,
+            45,
+        ),
+        (EDIT_REPORT_SELECTORS, "Edição do relatório", PAGE_SETTLE_SECONDS, 45),
+        (CALENDAR_SELECTORS, "Calendário do relatório", PAGE_SETTLE_SECONDS, 45),
+        (CURRENT_DAY_SELECTORS, "Dia corrente", PAGE_SETTLE_SECONDS, 30),
     )
-    click_visible_any(
-        tab,
-        FINANCIAL_PAYMENTS_SELECTORS,
-        "Relatório Pagamentos Financeiros",
-        cancel,
-        settle_seconds=PAGE_SETTLE_SECONDS,
-        timeout=45,
-    )
-    click_visible_any(
-        tab,
-        EDIT_REPORT_SELECTORS,
-        "Edição do relatório",
-        cancel,
-        settle_seconds=PAGE_SETTLE_SECONDS,
-        timeout=45,
-    )
-    click_visible_any(
-        tab,
-        CALENDAR_SELECTORS,
-        "Calendário do relatório",
-        cancel,
-        settle_seconds=PAGE_SETTLE_SECONDS,
-        timeout=45,
-    )
-    click_visible_any(
-        tab,
-        CURRENT_DAY_SELECTORS,
-        "Dia corrente",
-        cancel,
-        settle_seconds=PAGE_SETTLE_SECONDS,
-        timeout=30,
-    )
+    for selectors, description, settle_seconds, timeout in report_actions:
+        click_visible_any(
+            tab,
+            selectors,
+            description,
+            cancel,
+            settle_seconds=settle_seconds,
+            timeout=timeout,
+        )
 
     for index, selectors in enumerate(FILTER_FIELD_SELECTORS, start=1):
         field = find_visible_any(
@@ -549,22 +534,19 @@ def download_financial_payments(
         )
         field.input("", clear=True)
 
-    click_visible_any(
-        tab,
-        GENERATE_REPORT_SELECTORS,
-        "Geração do relatório",
-        cancel,
-        settle_seconds=PAGE_SETTLE_SECONDS,
-        timeout=45,
+    final_actions = (
+        (GENERATE_REPORT_SELECTORS, "Geração do relatório", PAGE_SETTLE_SECONDS, 45),
+        (REPORT_FORMAT_SELECTORS, "Formato do relatório", ACTION_SETTLE_SECONDS, 30),
     )
-    click_visible_any(
-        tab,
-        REPORT_FORMAT_SELECTORS,
-        "Formato do relatório",
-        cancel,
-        settle_seconds=ACTION_SETTLE_SECONDS,
-        timeout=30,
-    )
+    for selectors, description, settle_seconds, timeout in final_actions:
+        click_visible_any(
+            tab,
+            selectors,
+            description,
+            cancel,
+            settle_seconds=settle_seconds,
+            timeout=timeout,
+        )
 
     report_date = run_date or date.today()
     mission = _start_report_download(tab, target_dir, report_date, cancel)
@@ -599,7 +581,30 @@ def run_opera_download(
         return download_financial_payments(tab, download_dir, cancel)
     finally:
         if browser is not None:
-            try:
-                browser.quit()
-            except Exception:
-                pass
+            _quit_browser(browser)
+
+
+def _quit_browser(browser: Any) -> None:
+    """Fecha somente a árvore de processos do Chrome criado pela RPA."""
+    processes = []
+    process_id = getattr(browser, "process_id", None)
+    if process_id:
+        try:
+            root_process = Process(process_id)
+            processes = [*root_process.children(recursive=True), root_process]
+        except (AccessDenied, NoSuchProcess):
+            pass
+
+    try:
+        browser.quit(timeout=5, force=True)
+    except Exception:
+        pass
+
+    # O download do OPERA pode abrir outra janela no mesmo processo. Se o CDP
+    # perder essa janela, encerra apenas os processos capturados acima.
+    for process in processes:
+        try:
+            if process.is_running():
+                process.kill()
+        except (AccessDenied, NoSuchProcess):
+            pass

@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import call, patch
 
-from DrissionPage.errors import BrowserConnectError
+from DrissionPage.errors import BrowserConnectError, ElementLostError, NoRectError
 
 from automations.recebimentos import opera_browser
 from automations.recebimentos.opera_browser import (
@@ -23,6 +23,7 @@ from automations.recebimentos.opera_browser import (
     download_financial_payments,
     login_opera,
     open_hotel_search,
+    open_reports_and_analytics,
     run_opera_download,
     select_hotel,
 )
@@ -94,6 +95,45 @@ class FakeDownloadElement:
 
 
 class OperaBrowserTests(TestCase):
+    def test_falls_back_to_javascript_click_when_element_has_no_dimensions(self):
+        class Click:
+            def __init__(self) -> None:
+                self.by_js: list[bool] = []
+
+            def __call__(self, *, by_js: bool = False) -> None:
+                self.by_js.append(by_js)
+
+        element = type("Element", (), {})()
+        element.scroll = type(
+            "Scroll", (), {"to_see": lambda _self: (_ for _ in ()).throw(NoRectError())}
+        )()
+        element.click = Click()
+
+        with patch.object(opera_browser, "sleep"):
+            opera_browser._click_rendered_or_by_js(element)
+
+        self.assertEqual(element.click.by_js, [True])
+
+    def test_opens_responsive_reports_flyout_before_analytics(self):
+        tab = FakeTab({})
+        with patch.object(
+            opera_browser,
+            "click_visible_any",
+            side_effect=[None, RuntimeError("ainda fechado"), None, None],
+        ) as click_any:
+            open_reports_and_analytics(tab)
+
+        self.assertEqual(
+            [item.args[1] for item in click_any.call_args_list],
+            [
+                opera_browser.REPORTS_MENU_SELECTORS,
+                opera_browser.REPORTS_ANALYTICS_SELECTORS,
+                opera_browser.REPORTS_FLYOUT_SELECTORS,
+                opera_browser.REPORTS_ANALYTICS_SELECTORS,
+            ],
+        )
+        self.assertEqual(tab.wait.timeouts, [60])
+
     def test_retries_when_drission_cannot_connect_to_first_chrome(self):
         browser = object()
         with (
@@ -208,7 +248,7 @@ class OperaBrowserTests(TestCase):
         self.assertEqual(len(HOTEL_RESULT_SELECTORS), 2)
         field = object()
         with (
-            patch.object(opera_browser, "click_visible") as click,
+            patch.object(opera_browser, "click_visible_any") as click,
             patch.object(opera_browser, "find_visible_any", return_value=field),
         ):
             result = open_hotel_search(object())
@@ -216,7 +256,7 @@ class OperaBrowserTests(TestCase):
         self.assertIs(result, field)
         self.assertEqual(
             [item.args[1] for item in click.call_args_list],
-            [PROFILE_SELECTOR, CHANGE_LOCATION_SELECTOR],
+            [(PROFILE_SELECTOR,), (CHANGE_LOCATION_SELECTOR,)],
         )
 
     def test_searches_hotel_and_selects_first_result(self):
@@ -268,7 +308,9 @@ class OperaBrowserTests(TestCase):
                     "find_visible_any",
                     side_effect=[report_name, filter_one, filter_two, download_button],
                 ) as find_any,
-                patch.object(opera_browser, "click_visible") as click,
+                patch.object(
+                    opera_browser, "open_reports_and_analytics"
+                ) as navigation,
                 patch.object(opera_browser, "click_visible_any") as click_any,
                 patch.object(opera_browser, "sleep"),
             ):
@@ -420,13 +462,7 @@ class OperaBrowserTests(TestCase):
                 ),
             ],
         )
-        self.assertEqual(
-            [item.args[1] for item in click.call_args_list],
-            [
-                opera_browser.REPORTS_MENU_SELECTOR,
-                opera_browser.REPORTS_ANALYTICS_SELECTOR,
-            ],
-        )
+        navigation.assert_called_once_with(tab, None)
         self.assertEqual(
             download_button.click.arguments,
             {
@@ -474,9 +510,11 @@ class OperaBrowserTests(TestCase):
         class Browser:
             def __init__(self) -> None:
                 self.quit_count = 0
+                self.quit_options = None
 
-            def quit(self) -> None:
+            def quit(self, **options) -> None:
                 self.quit_count += 1
+                self.quit_options = options
 
         browser = Browser()
         config = OperaLoginConfig("usuario", "senha")
@@ -501,3 +539,35 @@ class OperaBrowserTests(TestCase):
         hotel.assert_called_once_with("tab", "MAGNA - Magna Praia Hotel", None)
         download.assert_called_once_with("tab", Path("output"), None)
         self.assertEqual(browser.quit_count, 1)
+        self.assertEqual(browser.quit_options, {"timeout": 5, "force": True})
+
+    def test_kills_browser_process_tree_when_window_survives_quit(self):
+        class Browser:
+            process_id = 123
+
+            def quit(self, **_options) -> None:
+                pass
+
+        class Process:
+            def __init__(self, children=()) -> None:
+                self._children = list(children)
+                self.kill_count = 0
+
+            def children(self, *, recursive: bool):
+                self.recursive = recursive
+                return self._children
+
+            def is_running(self) -> bool:
+                return True
+
+            def kill(self) -> None:
+                self.kill_count += 1
+
+        child = Process()
+        root = Process([child])
+        with patch.object(opera_browser, "Process", return_value=root):
+            opera_browser._quit_browser(Browser())
+
+        self.assertTrue(root.recursive)
+        self.assertEqual(child.kill_count, 1)
+        self.assertEqual(root.kill_count, 1)
