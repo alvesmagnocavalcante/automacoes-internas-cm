@@ -145,11 +145,13 @@ Cadastre secrets exclusivos para esta automação:
 | --- | --- |
 | `RECEBIMENTOS_OPERA_USERNAME` | Usuário do OPERA. |
 | `RECEBIMENTOS_OPERA_PASSWORD` | Senha do OPERA. |
-| `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort. |
+| `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort para execução local. |
 
 A execução manual está em
-**Actions → Conferência de recebimentos → Run workflow**. Nesta etapa, o
-workflow baixa o relatório do OPERA e publica o artefato
+**Actions → Conferência de recebimentos → Run workflow**. Informe o hotel no
+campo `hotel`, preenchido por padrão com `MAGNA`. Se os secrets exclusivos de
+usuário e senha não existirem, o workflow utiliza `OPERA_USERNAME` e
+`OPERA_PASSWORD`. Nesta etapa, ele baixa o relatório do OPERA e publica o artefato
 `conferencia-recebimentos-<número-da-execução>`. O download do CMFlex será
 incorporado posteriormente.
 

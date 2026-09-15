@@ -2,6 +2,12 @@ name: Conferência de recebimentos
 
 on:
   workflow_dispatch:
+    inputs:
+      hotel:
+        description: Hotel/resort do OPERA
+        required: true
+        default: MAGNA
+        type: string
 
 permissions:
   contents: read
@@ -20,9 +26,9 @@ jobs:
       PYTHONUTF8: "1"
       UV_SYSTEM_CERTS: "true"
       RECEBIMENTOS_HEADLESS: "false"
-      RECEBIMENTOS_OPERA_USERNAME: ${{ secrets.RECEBIMENTOS_OPERA_USERNAME }}
-      RECEBIMENTOS_OPERA_PASSWORD: ${{ secrets.RECEBIMENTOS_OPERA_PASSWORD }}
-      RECEBIMENTOS_OPERA_HOTEL: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL }}
+      RECEBIMENTOS_OPERA_USERNAME: ${{ secrets.RECEBIMENTOS_OPERA_USERNAME || secrets.OPERA_USERNAME }}
+      RECEBIMENTOS_OPERA_PASSWORD: ${{ secrets.RECEBIMENTOS_OPERA_PASSWORD || secrets.OPERA_PASSWORD }}
+      RECEBIMENTOS_OPERA_HOTEL: ${{ inputs.hotel }}
 
     steps:
       - name: Baixar código
