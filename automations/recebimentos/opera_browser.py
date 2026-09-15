@@ -118,6 +118,7 @@ FINAL_DOWNLOAD_SELECTORS = (
 POLL_INTERVAL = 0.25
 ACTION_SETTLE_SECONDS = 0.25
 PAGE_SETTLE_SECONDS = 0.75
+FILTER_CLEAR_SETTLE_SECONDS = 2.0
 OPERA_QUERY_RETRIES = 3
 TRANSIENT_BROWSER_ERRORS = (ContextLostError, ElementLostError, NoRectError)
 
@@ -510,7 +511,7 @@ def _clear_filter_field(
             )
         except (ContextLostError, ElementLostError):
             pass
-        sleep(ACTION_SETTLE_SECONDS)
+        sleep(FILTER_CLEAR_SETTLE_SECONDS)
         try:
             refreshed = find_visible_any(
                 tab, selectors, description, cancel, timeout=30
@@ -578,7 +579,7 @@ def download_financial_payments(
     formatted_report_date = report_date.strftime("%d/%m/%Y")
     report_date_field.input(formatted_report_date, clear=True)
     report_date_field.run_js("this.blur();")
-    sleep(ACTION_SETTLE_SECONDS)
+    sleep(FILTER_CLEAR_SETTLE_SECONDS)
     report_date_field = find_visible_any(
         tab,
         REPORT_DATE_SELECTORS,
