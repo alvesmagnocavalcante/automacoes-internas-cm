@@ -66,3 +66,23 @@ class RecebimentosCliTests(TestCase):
             Path("downloads"),
         )
         reconcile.assert_not_called()
+
+    def test_download_cmflex_mode_does_not_require_other_reports(self):
+        config = object()
+        with (
+            patch.object(
+                cli, "cmflex_config_from_env", return_value=config
+            ) as config_factory,
+            patch.object(
+                cli,
+                "run_cmflex_download",
+                return_value=Path("downloads/cmflex.xlsx"),
+            ) as download,
+            patch.object(cli, "run") as reconcile,
+        ):
+            exit_code = cli.main(["--baixar-cmflex", "--download-dir", "downloads"])
+
+        self.assertEqual(exit_code, 0)
+        config_factory.assert_called_once_with("MAGNA")
+        download.assert_called_once_with(config, Path("downloads"))
+        reconcile.assert_not_called()

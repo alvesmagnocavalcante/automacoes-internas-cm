@@ -33,9 +33,17 @@ class FakeElement:
     def __init__(self) -> None:
         self.inputs: list[tuple[str, bool]] = []
         self.click_count = 0
+        self.value = ""
 
     def input(self, value: str, *, clear: bool) -> None:
         self.inputs.append((value, clear))
+        self.value = value
+
+    def run_js(self, _script: str) -> None:
+        self.value = ""
+
+    def property(self, name: str):
+        return self.value if name == "value" else None
 
     def click(self) -> None:
         self.click_count += 1
@@ -319,14 +327,15 @@ class OperaBrowserTests(TestCase):
         )
         self.assertEqual(tab.wait.timeouts, [60])
 
-    def test_downloads_financial_payments_for_current_day(self):
+    def test_downloads_financial_payments_for_previous_day(self):
         report_name = FakeElement()
+        report_date_field = FakeElement()
         filter_one = FakeElement()
         filter_two = FakeElement()
         tab = FakeTab({})
 
         with TemporaryDirectory() as directory:
-            downloaded = Path(directory) / "opera_recebimentos_2026-09-14.xml"
+            downloaded = Path(directory) / "opera_recebimentos_2026-09-13.xml"
             downloaded.touch()
             mission = FakeMission(downloaded)
             download_button = FakeDownloadElement(mission)
@@ -334,7 +343,13 @@ class OperaBrowserTests(TestCase):
                 patch.object(
                     opera_browser,
                     "find_visible_any",
-                    side_effect=[report_name, filter_one, filter_two, download_button],
+                    side_effect=[
+                        report_name,
+                        report_date_field,
+                        filter_one,
+                        filter_two,
+                        download_button,
+                    ],
                 ) as find_any,
                 patch.object(opera_browser, "open_reports_and_analytics") as navigation,
                 patch.object(opera_browser, "click_visible_any") as click_any,
@@ -348,8 +363,9 @@ class OperaBrowserTests(TestCase):
 
         self.assertEqual(result, downloaded)
         self.assertEqual(report_name.inputs, [("CASH", True)])
-        self.assertEqual(filter_one.inputs, [("", True)])
-        self.assertEqual(filter_two.inputs, [("", True)])
+        self.assertEqual(report_date_field.inputs, [("13/09/2026", True)])
+        self.assertEqual(filter_one.inputs, [])
+        self.assertEqual(filter_two.inputs, [])
         self.assertEqual(
             opera_browser.REPORT_NAME_SELECTORS[0],
             "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[2]/span/div/div[2]/div/div[2]/div[2]/span/span/span[2]/span[2]/span/input",
@@ -367,12 +383,8 @@ class OperaBrowserTests(TestCase):
             "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[7]/span/div/div/span/span/span[2]/span[1]/span/div[3]",
         )
         self.assertEqual(
-            opera_browser.CALENDAR_SELECTORS[0],
-            "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/button",
-        )
-        self.assertEqual(
-            opera_browser.CURRENT_DAY_SELECTORS[0],
-            "xpath:/html/body/div[5]/button",
+            opera_browser.REPORT_DATE_SELECTORS[0],
+            "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/input",
         )
         self.assertEqual(
             opera_browser.FILTER_FIELD_SELECTORS[0][0],
@@ -401,6 +413,13 @@ class OperaBrowserTests(TestCase):
                     tab,
                     opera_browser.REPORT_NAME_SELECTORS,
                     "Campo Report Name",
+                    None,
+                    timeout=45,
+                ),
+                call(
+                    tab,
+                    opera_browser.REPORT_DATE_SELECTORS,
+                    "Data do relatório",
                     None,
                     timeout=45,
                 ),
@@ -456,22 +475,6 @@ class OperaBrowserTests(TestCase):
                 ),
                 call(
                     tab,
-                    opera_browser.CALENDAR_SELECTORS,
-                    "Calendário do relatório",
-                    None,
-                    settle_seconds=opera_browser.PAGE_SETTLE_SECONDS,
-                    timeout=45,
-                ),
-                call(
-                    tab,
-                    opera_browser.CURRENT_DAY_SELECTORS,
-                    "Dia corrente",
-                    None,
-                    settle_seconds=opera_browser.PAGE_SETTLE_SECONDS,
-                    timeout=30,
-                ),
-                call(
-                    tab,
                     opera_browser.GENERATE_REPORT_SELECTORS,
                     "Geração do relatório",
                     None,
@@ -493,7 +496,7 @@ class OperaBrowserTests(TestCase):
             download_button.click.arguments,
             {
                 "save_path": Path(directory).resolve(),
-                "rename": "opera_recebimentos_2026-09-14",
+                "rename": "opera_recebimentos_2026-09-13",
                 "new_tab": True,
                 "by_js": True,
                 "timeout": 60,

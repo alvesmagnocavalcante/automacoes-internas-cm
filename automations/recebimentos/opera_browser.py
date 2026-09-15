@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from threading import Event
 from time import monotonic, sleep
@@ -87,15 +87,9 @@ EDIT_REPORT_SELECTORS = (
     'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:actionBar:odec_axn_br_axns_pstv_i:2:odec_axn_br_axn_pstv"]',
     'xpath://button[normalize-space()="Edit" or normalize-space()="Editar"]',
 )
-CALENDAR_SELECTORS = (
-    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/button",
-    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:3:pt1:oc_pnl_cmp:oc_scrn_pnl_tmpl:oc_scrn_tmpl_2vf25c:oc_scrn_pnl_pnl:oc_pnl_tmpl_2vf25c:fe0:mdmprm_695718131:oc_mdm_rptpm_id1:odec_dt_it"]/button',
-    'xpath://button[contains(@aria-label, "calendar") or contains(@title, "calendar") or contains(@aria-label, "calendário") or contains(@title, "calendário")]',
-)
-CURRENT_DAY_SELECTORS = (
-    "xpath:/html/body/div[5]/button",
-    "xpath:/html/body/div[6]/button",
-    'xpath://button[normalize-space()="Today" or normalize-space()="Hoje"]',
+REPORT_DATE_SELECTORS = (
+    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/span/div/div/div/div/span/div[2]/div[3]/div/div[2]/div[1]/span/span/span[2]/span[2]/span[1]/input",
+    'xpath://input[contains(@id, "mdmprm_695718131") and not(@type="hidden")]',
 )
 FILTER_FIELD_SELECTORS = (
     (
@@ -497,9 +491,11 @@ def download_financial_payments(
     *,
     run_date: date | None = None,
 ) -> Path:
-    """Gera e baixa o relatório Financial Payments do dia corrente."""
+    """Gera e baixa o Financial Payments referente ao dia anterior."""
     target_dir = download_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
+    execution_date = run_date or date.today()
+    report_date = execution_date - timedelta(days=1)
 
     open_reports_and_analytics(tab, cancel)
 
@@ -522,8 +518,6 @@ def download_financial_payments(
             45,
         ),
         (EDIT_REPORT_SELECTORS, "Edição do relatório", PAGE_SETTLE_SECONDS, 45),
-        (CALENDAR_SELECTORS, "Calendário do relatório", PAGE_SETTLE_SECONDS, 45),
-        (CURRENT_DAY_SELECTORS, "Dia corrente", PAGE_SETTLE_SECONDS, 30),
     )
     for selectors, description, settle_seconds, timeout in report_actions:
         click_visible_any(
@@ -535,6 +529,16 @@ def download_financial_payments(
             timeout=timeout,
         )
 
+    report_date_field = find_visible_any(
+        tab,
+        REPORT_DATE_SELECTORS,
+        "Data do relatório",
+        cancel,
+        timeout=45,
+    )
+    report_date_field.input(report_date.strftime("%d/%m/%Y"), clear=True)
+    sleep(ACTION_SETTLE_SECONDS)
+
     for index, selectors in enumerate(FILTER_FIELD_SELECTORS, start=1):
         field = find_visible_any(
             tab,
@@ -543,7 +547,20 @@ def download_financial_payments(
             cancel,
             timeout=30,
         )
-        field.input("", clear=True)
+        field.run_js(
+            """
+            const setter = Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype, 'value'
+            ).set;
+            setter.call(this, '');
+            this.dispatchEvent(new Event('input', {bubbles: true}));
+            this.dispatchEvent(new Event('change', {bubbles: true}));
+            this.blur();
+            """
+        )
+        sleep(ACTION_SETTLE_SECONDS)
+        if str(field.property("value") or "").strip():
+            raise RuntimeError(f"Campo de filtro {index} não foi limpo.")
 
     final_actions = (
         (GENERATE_REPORT_SELECTORS, "Geração do relatório", PAGE_SETTLE_SECONDS, 45),
@@ -559,7 +576,6 @@ def download_financial_payments(
             timeout=timeout,
         )
 
-    report_date = run_date or date.today()
     mission = _start_report_download(tab, target_dir, report_date, cancel)
     downloaded_path = _wait_for_report_download(mission, cancel)
     if not downloaded_path.is_file():

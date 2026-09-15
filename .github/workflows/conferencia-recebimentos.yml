@@ -23,6 +23,9 @@ jobs:
       RECEBIMENTOS_OPERA_USERNAME: ${{ secrets.RECEBIMENTOS_OPERA_USERNAME || secrets.OPERA_USERNAME }}
       RECEBIMENTOS_OPERA_PASSWORD: ${{ secrets.RECEBIMENTOS_OPERA_PASSWORD || secrets.OPERA_PASSWORD }}
       RECEBIMENTOS_OPERA_HOTEL: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL || vars.RECEBIMENTOS_OPERA_HOTEL }}
+      RECEBIMENTOS_CMFLEX_USERNAME: ${{ secrets.RECEBIMENTOS_CMFLEX_USERNAME }}
+      RECEBIMENTOS_CMFLEX_PASSWORD: ${{ secrets.RECEBIMENTOS_CMFLEX_PASSWORD }}
+      RECEBIMENTOS_CMFLEX_COMPANY: ${{ secrets.RECEBIMENTOS_CMFLEX_COMPANY || vars.RECEBIMENTOS_CMFLEX_COMPANY }}
 
     steps:
       - name: Baixar código
@@ -38,7 +41,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Validar automação
-        run: uv run python -m unittest tests.recebimentos.test_opera_browser -v
+        run: uv run python -m unittest discover -s tests/recebimentos -v
 
       - name: Limpar relatório anterior
         shell: powershell
@@ -50,6 +53,9 @@ jobs:
 
       - name: Baixar relatório do OPERA
         run: uv run python main.py conferencia-recebimentos --baixar-opera
+
+      - name: Baixar relatório do CMFlex
+        run: uv run python main.py conferencia-recebimentos --baixar-cmflex
 
       - name: Publicar relatório
         if: ${{ always() }}

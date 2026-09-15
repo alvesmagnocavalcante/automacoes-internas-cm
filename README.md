@@ -76,8 +76,15 @@ uv run python main.py conferencia-recebimentos --baixar-opera
 ```
 
 O navegador é fechado ao final e o arquivo é salvo em `output/recebimentos`.
-O download do CMFlex ainda será incorporado ao RPA. Para executar somente a
-conferência com os três arquivos já baixados:
+Para baixar o relatório de Lançamentos de Documentos do CMFlex:
+
+```powershell
+uv run python main.py conferencia-recebimentos --baixar-cmflex
+```
+
+A empresa padrão é `MAGNA` e pode ser alterada com `--empresa-cmflex` ou
+`RECEBIMENTOS_CMFLEX_COMPANY`. Para executar somente a conferência com os três
+arquivos já baixados:
 
 ```powershell
 uv run python main.py conferencia-recebimentos `
@@ -146,15 +153,17 @@ Cadastre secrets exclusivos para esta automação:
 | `RECEBIMENTOS_OPERA_USERNAME` | Usuário do OPERA. |
 | `RECEBIMENTOS_OPERA_PASSWORD` | Senha do OPERA. |
 | `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort para execução local. |
+| `RECEBIMENTOS_CMFLEX_USERNAME` | Usuário do CMFlex. |
+| `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha do CMFlex. |
+| `RECEBIMENTOS_CMFLEX_COMPANY` | Empresa do CMFlex, inicialmente `MAGNA`. |
 
 A execução manual está em
 **Actions → Conferência de recebimentos → Run workflow**. O hotel é obtido
 automaticamente de `RECEBIMENTOS_OPERA_HOTEL`, priorizando o Secret e usando a
 Variable do repositório como alternativa. Se os secrets exclusivos de usuário e
 senha não existirem, o workflow utiliza `OPERA_USERNAME` e `OPERA_PASSWORD`.
-Nesta etapa, ele baixa o relatório do OPERA e publica o artefato
-`conferencia-recebimentos-<número-da-execução>`. O download do CMFlex será
-incorporado posteriormente.
+Nesta etapa, ele baixa os relatórios do OPERA e do CMFlex e publica o artefato
+`conferencia-recebimentos-<número-da-execução>`.
 
 ### Arquivos gerados
 

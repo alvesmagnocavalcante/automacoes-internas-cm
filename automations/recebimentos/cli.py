@@ -8,6 +8,10 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
+from automations.recebimentos.cmflex_browser import (
+    config_from_env as cmflex_config_from_env,
+)
+from automations.recebimentos.cmflex_browser import run_cmflex_download
 from automations.recebimentos.opera_browser import (
     config_from_env,
     load_environment,
@@ -38,10 +42,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Retorna código 2 quando houver divergências.",
     )
-    parser.add_argument(
+    download_mode = parser.add_mutually_exclusive_group()
+    download_mode.add_argument(
         "--baixar-opera",
         action="store_true",
         help="Testa o RPA e baixa somente o relatório Pagamentos Financeiros.",
+    )
+    download_mode.add_argument(
+        "--baixar-cmflex",
+        action="store_true",
+        help="Baixa somente o relatório Lançamentos de Documentos do CMFlex.",
     )
     parser.add_argument(
         "--hotel",
@@ -49,10 +59,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Hotel/resort do OPERA; usa RECEBIMENTOS_OPERA_HOTEL ou OPERA_HOTEL.",
     )
     parser.add_argument(
+        "--empresa-cmflex",
+        default=os.getenv("RECEBIMENTOS_CMFLEX_COMPANY")
+        or os.getenv("CMFLEX_COMPANY", "MAGNA"),
+        help="Empresa do CMFlex; usa RECEBIMENTOS_CMFLEX_COMPANY ou MAGNA.",
+    )
+    parser.add_argument(
         "--download-dir",
         type=Path,
         default=Path("output/recebimentos"),
-        help="Pasta para o relatório baixado do OPERA.",
+        help="Pasta para os relatórios baixados.",
     )
     return parser.parse_args(argv)
 
@@ -72,6 +88,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config_from_env(), args.hotel, args.download_dir
             )
             LOGGER.info("Relatório OPERA baixado: %s", downloaded)
+            return 0
+
+        if args.baixar_cmflex:
+            downloaded = run_cmflex_download(
+                cmflex_config_from_env(args.empresa_cmflex),
+                args.download_dir,
+            )
+            LOGGER.info("Relatório CMFlex baixado: %s", downloaded)
             return 0
 
         missing = [
