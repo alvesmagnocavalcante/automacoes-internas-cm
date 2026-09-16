@@ -3,6 +3,8 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
+from lxml import html
+
 from automations.booking_opera import browser as booking_browser
 from automations.booking_opera import company_config_from_env, config_from_env, run
 from automations.booking_opera.domain import (
@@ -21,6 +23,70 @@ from automations.booking_opera.models import (
 
 
 class BookingTests(TestCase):
+    def test_opera_menu_selectors_use_labels_not_positions(self):
+        menu = html.fromstring(
+            """
+            <div>
+              <table>
+                <tr id="menu:1:odec_drpmn_mb_mn_si">
+                  <td></td><td>Reservations Workspace</td>
+                </tr>
+                <tr id="menu:3:odec_drpmn_mb_mn_si">
+                  <td></td><td>Reservations</td>
+                </tr>
+              </table>
+              <div id="menu:2:odec_drpmn_mb_mn_grp_itm">Property Calendar</div>
+              <div id="menu:5:odec_drpmn_mb_mn_grp_itm">Manage Reservation</div>
+            </div>
+            """
+        )
+
+        reservations = menu.xpath(
+            booking_browser.RESERVATIONS_SELECTOR.removeprefix("xpath:")
+        )
+        manage = menu.xpath(
+            booking_browser.MANAGE_RESERVATION_SELECTOR.removeprefix("xpath:")
+        )
+
+        self.assertEqual(
+            [element.text_content().strip() for element in reservations],
+            ["Reservations"],
+        )
+        self.assertEqual(
+            [element.text_content().strip() for element in manage],
+            ["Manage Reservation"],
+        )
+
+    def test_open_reservations_uses_labeled_menu_and_checks_search_screen(self):
+        class Wait:
+            def ele_displayed(self, *_args, **_kwargs):
+                return True
+
+            def doc_loaded(self, *_args, **_kwargs):
+                pass
+
+        class Tab:
+            wait = Wait()
+
+        with (
+            patch.object(booking_browser, "click_visible") as click,
+            patch.object(booking_browser, "click_visible_any") as click_any,
+        ):
+            booking_browser.open_reservations(Tab(), None)
+
+        self.assertEqual(
+            [call.args[1] for call in click.call_args_list],
+            [
+                booking_browser.BOOKINGS_SELECTOR,
+                booking_browser.RESERVATIONS_SELECTOR,
+                booking_browser.MANAGE_RESERVATION_SELECTOR,
+            ],
+        )
+        click_any.assert_called_once()
+        self.assertEqual(
+            click_any.call_args.args[1], booking_browser.SEARCH_MODE_SELECTORS
+        )
+
     def test_company_configuration_isolated_by_credentials_hotel_and_output(self):
         environment = {
             "BOOKING_USERNAME": "magna-antigo",

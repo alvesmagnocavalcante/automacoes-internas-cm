@@ -44,7 +44,7 @@ from automations.booking_opera.opera_selectors import (
     RESERVATIONS_SELECTOR,
     RESULT_COUNT_SELECTOR,
     SEARCH_BUTTON_SELECTOR,
-    SEARCH_MODE_SELECTOR,
+    SEARCH_MODE_SELECTORS,
     TOTAL_VALUE_SELECTOR,
     USERNAME_SELECTOR,
 )
@@ -541,7 +541,12 @@ def open_reservations(tab: Any, cancel: Event | None) -> None:
         raise RuntimeError("Opção Manage Reservation não ficou visível.")
     click_visible(tab, MANAGE_RESERVATION_SELECTOR, "Manage Reservation", cancel)
     tab.wait.doc_loaded(timeout=60)
-    click_visible(tab, SEARCH_MODE_SELECTOR, "Busca simplificada", cancel)
+    click_visible_any(
+        tab,
+        SEARCH_MODE_SELECTORS,
+        "Busca simplificada em Manage Reservation",
+        cancel,
+    )
 
 
 def wait_for_text(

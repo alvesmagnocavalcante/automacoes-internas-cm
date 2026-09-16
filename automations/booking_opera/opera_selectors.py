@@ -26,9 +26,19 @@ HOTEL_RESULT_SELECTORS = (
     'xpath://*[contains(@id, "odec_axn_br_axns_pstv_i:0") and contains(@id, "odec_axn_br_axn_pstv")]',
 )
 BOOKINGS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:1:odec_drpmn_mb_mn"]/div'
-RESERVATIONS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:1:odec_drpmn_mb_mn_grp:2:odec_drpmn_mb_mn_si"]/td[2]'
-MANAGE_RESERVATION_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:1:odec_drpmn_mb_mn_grp:2:odec_drpmn_mb_mn_si_grp:2:odec_drpmn_mb_mn_grp_itm"]'
+RESERVATIONS_SELECTOR = (
+    'xpath://*[contains(@id, "odec_drpmn_mb_mn_si")]/td[2]'
+    '[normalize-space(.)="Reservations"]'
+)
+MANAGE_RESERVATION_SELECTOR = (
+    'xpath://*[contains(@id, "odec_drpmn_mb_mn_grp_itm") '
+    'and normalize-space(.)="Manage Reservation"]'
+)
 SEARCH_MODE_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:1:pt1:oc_srch_tmpl_167b9q:ode_bscrn_tmpl:oc_srch_swtchr:odec_srch_swtchr_advncd_sf:odec_srch_swtchr_advncd_swtch_lnk"]'
+SEARCH_MODE_SELECTORS = (
+    SEARCH_MODE_SELECTOR,
+    'xpath://*[contains(@id, "odec_srch_swtchr_advncd_swtch_lnk")]',
+)
 RESERVATION_INPUT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:1:pt1:oc_srch_tmpl_167b9q:ode_bscrn_tmpl:oc_srch_swtchr:odec_srch_swtchr_bsc_ts:odec_ts_sbfrm:odec_ts_inpt::content"]'
 SEARCH_BUTTON_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:1:pt1:oc_srch_tmpl_167b9q:ode_bscrn_tmpl:oc_srch_swtchr:odec_srch_swtchr_bsc_ts:odec_ts_sbfrm:odec_ts_srch"]'
 RATE_LINK_SELECTOR = 'xpath://*[contains(@id, "oc_srch_rslts_tbl_tmpl") and contains(@id, ":ca3:occ_crncy_amt_lnk::text")]'
