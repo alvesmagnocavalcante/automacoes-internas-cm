@@ -21,6 +21,7 @@ jobs:
       UV_SYSTEM_CERTS: "true"
       BOOKING_HEADLESS: "false"
       BOOKING_OUTPUT_DIR: output
+      BOOKING_ARCHIVE_DIR: ${{ vars.BOOKING_ARCHIVE_DIR }}
       BOOKING_USERNAME: ${{ secrets.BOOKING_USERNAME }}
       BOOKING_PASSWORD: ${{ secrets.BOOKING_PASSWORD }}
       OPERA_USERNAME: ${{ secrets.OPERA_USERNAME }}

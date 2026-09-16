@@ -13,6 +13,7 @@ class BookingOperaCliTests(TestCase):
             divergent_count=1,
             not_compared_count=3,
             report_excel=Path("output/report.xlsx"),
+            archive_excel=None,
         )
         with patch.object(cli, "run", return_value=result):
             exit_code = cli.main(["--fail-on-divergence"])
@@ -31,6 +32,7 @@ class BookingOperaCliTests(TestCase):
             divergent_count=0,
             not_compared_count=0,
             report_excel=Path("output/report.xlsx"),
+            archive_excel=None,
         )
         with patch.object(cli, "run", return_value=result):
             exit_code = cli.main([])

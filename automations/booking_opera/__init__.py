@@ -49,7 +49,10 @@ def run(
     return service.run(config, progress, cancel)
 
 
-def config_from_env(output_dir: Path | None = None) -> BookingConfig:
+def config_from_env(
+    output_dir: Path | None = None, archive_dir: Path | None = None
+) -> BookingConfig:
+    configured_archive = os.getenv("BOOKING_ARCHIVE_DIR", "").strip()
     return BookingConfig(
         os.getenv("BOOKING_USERNAME", ""),
         os.getenv("BOOKING_PASSWORD", ""),
@@ -60,4 +63,6 @@ def config_from_env(output_dir: Path | None = None) -> BookingConfig:
         hotel_name=os.getenv("OPERA_HOTEL", ""),
         booking_url=os.getenv("BOOKING_URL", BOOKING_URL),
         opera_url=os.getenv("OPERA_URL", OPERA_URL),
+        archive_dir=archive_dir
+        or (Path(configured_archive) if configured_archive else None),
     )

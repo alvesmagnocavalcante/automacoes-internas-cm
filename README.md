@@ -165,6 +165,14 @@ A execução manual está disponível em
 
 O agendamento permanece desabilitado no workflow; a execução atual é manual.
 
+Para salvar também o Excel final em uma pasta escolhida por você, cadastre a
+Variable `BOOKING_ARCHIVE_DIR` em **Settings → Secrets and variables → Actions**
+com o caminho dessa pasta. O caminho deve ser acessível pelo runner que executa
+o workflow (no webtop, use um caminho Linux ou um volume montado). A cópia recebe
+data e hora no nome para preservar execuções anteriores; o arquivo original em
+`output/` e o artefato do Actions permanecem disponíveis. Sem a Variable, não há
+cópia adicional. Localmente, também é possível usar `--archive-dir`.
+
 ## Configuração da conferência de recebimentos
 
 Cadastre secrets exclusivos para esta automação:

@@ -32,6 +32,7 @@ class BookingConfig:
     booking_url: str = BOOKING_URL
     opera_url: str = OPERA_URL
     hotel_name: str = ""
+    archive_dir: Path | None = None
 
     def validate(self) -> None:
         credentials = (
@@ -52,6 +53,7 @@ class BookingResult:
     booking_csv: Path
     report_csv: Path
     report_excel: Path
+    archive_excel: Path | None = None
 
     @property
     def matched_count(self) -> int:

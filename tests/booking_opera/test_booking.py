@@ -4,7 +4,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from automations.booking_opera import browser as booking_browser
-from automations.booking_opera import run
+from automations.booking_opera import config_from_env, run
 from automations.booking_opera.domain import (
     compare_records,
     consolidate_grouped_record,
@@ -21,6 +21,16 @@ from automations.booking_opera.models import (
 
 
 class BookingTests(TestCase):
+    def test_archive_directory_comes_from_environment_and_can_be_overridden(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertIsNone(config_from_env().archive_dir)
+        with patch.dict("os.environ", {"BOOKING_ARCHIVE_DIR": "arquivo-env"}):
+            self.assertEqual(config_from_env().archive_dir, Path("arquivo-env"))
+            self.assertEqual(
+                config_from_env(archive_dir=Path("arquivo-cli")).archive_dir,
+                Path("arquivo-cli"),
+            )
+
     def test_default_booking_url_uses_configured_hotel(self):
         self.assertEqual(
             BOOKING_URL,
@@ -902,14 +912,26 @@ class BookingTests(TestCase):
         )
 
         with TemporaryDirectory() as directory:
+            archive_dir = Path(directory) / "arquivo"
             config = BookingConfig(
-                "user", "pass", "user", "pass", Path(directory), hotel_name="Resort Teste"
+                "user",
+                "pass",
+                "user",
+                "pass",
+                Path(directory),
+                hotel_name="Resort Teste",
+                archive_dir=archive_dir,
             )
             result = run(config, dependencies=dependencies)
 
             self.assertEqual(result.matched_count, 0)
             self.assertEqual(result.divergent_count, 1)
             self.assertTrue(result.report_excel.exists())
+            self.assertIsNotNone(result.archive_excel)
+            self.assertEqual(result.archive_excel.parent, archive_dir)
+            self.assertEqual(
+                result.archive_excel.read_bytes(), result.report_excel.read_bytes()
+            )
             self.assertEqual(
                 opera_steps,
                 ["login", "hotel:Resort Teste", "reservations", "total"],

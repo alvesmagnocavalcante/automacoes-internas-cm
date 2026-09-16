@@ -23,6 +23,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Diretório dos relatórios (padrão: BOOKING_OUTPUT_DIR ou output).",
     )
     parser.add_argument(
+        "--archive-dir",
+        type=Path,
+        help="Pasta opcional para copiar o Excel final (ou BOOKING_ARCHIVE_DIR).",
+    )
+    parser.add_argument(
         "--fail-on-divergence",
         action="store_true",
         help="Retorna código 2 quando houver divergências ou erros por reserva.",
@@ -41,7 +46,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s",
     )
     try:
-        result = run(config_from_env(args.output_dir), progress=progress)
+        result = run(
+            config_from_env(args.output_dir, args.archive_dir), progress=progress
+        )
     except Exception as error:
         LOGGER.exception("Automação encerrada: %s", error)
         return 1
@@ -53,6 +60,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         result.not_compared_count,
     )
     LOGGER.info("Relatório Excel: %s", result.report_excel)
+    if result.archive_excel is not None:
+        LOGGER.info("Cópia do relatório Excel: %s", result.archive_excel)
     if args.fail_on_divergence and result.divergent_count:
         return 2
     return 0

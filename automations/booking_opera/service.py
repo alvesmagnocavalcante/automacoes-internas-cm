@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+from shutil import copy2
 from threading import Event
 from time import monotonic
 
@@ -90,8 +92,18 @@ class BookingReconciliationService:
             report = [final_report_record(record, columns) for record in records]
             save_report_csv(report_csv, REPORT_HEADERS, report)
             save_report_excel(report_excel, REPORT_HEADERS, report)
+            archive_excel = None
+            if config.archive_dir is not None:
+                config.archive_dir.mkdir(parents=True, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+                archive_excel = (
+                    config.archive_dir / f"conferencia_booking_opera_{timestamp}.xlsx"
+                )
+                copy2(report_excel, archive_excel)
             notify(progress, "Conferência concluída", 1.0)
-            return BookingResult(tuple(records), booking_csv, report_csv, report_excel)
+            return BookingResult(
+                tuple(records), booking_csv, report_csv, report_excel, archive_excel
+            )
         finally:
             self._close_browsers(booking_browser, opera_browser)
 
