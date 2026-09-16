@@ -40,6 +40,13 @@ uv run python main.py --list
 └── uv.lock                     # Versões fixadas das dependências
 ```
 
+Nos dois projetos, `service.py` coordena a execução, `domain.py` concentra a
+lógica de conferência e `cli.py` mantém a entrada por linha de comando. Os
+fluxos de navegação continuam em `browser.py` (Booking × OPERA) e em
+`opera_browser.py`/`cmflex_browser.py` (recebimentos). Seus seletores e scripts
+de página ficam em arquivos `*_selectors.py` próprios de cada automação;
+nenhuma delas importa os seletores da outra.
+
 ## Execução local
 
 ### Requisitos

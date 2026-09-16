@@ -11,8 +11,55 @@ from urllib.parse import urlsplit
 from DrissionPage import Chromium, ChromiumOptions
 from DrissionPage.errors import ContextLostError, ElementLostError, NoRectError
 
+from automations.booking_opera.booking_selectors import (
+    APPLY_COLUMNS_SCRIPT,
+    BOOKING_PASSWORD_SELECTORS,
+    BOOKING_REPORT_ROW_COUNT_SCRIPT,
+    BOOKING_TABLE_SNAPSHOT_SCRIPT,
+    BOOKING_USERNAME_SELECTORS,
+    COLUMN_SELECTION_SCRIPT,
+    OPEN_COLUMNS_PANEL_SCRIPT,
+    SELECT_ALL_BOOKING_ROWS_SCRIPT,
+)
+from automations.booking_opera.booking_selectors import (
+    COLUMN_BUTTON_XPATH as COLUMN_BUTTON_XPATH,
+)
 from automations.booking_opera.domain import checkpoint
 from automations.booking_opera.models import AutomationCancelled, BookingConfig
+from automations.booking_opera.opera_selectors import (
+    BOOKINGS_SELECTOR,
+    CHANGE_LOCATION_SELECTOR,
+    CLOSE_RATE_SELECTORS,
+    CONTINUE_BUTTON_SELECTOR,
+    HOTEL_INPUT_SELECTORS,
+    HOTEL_RESULT_SELECTORS,
+    HOTEL_SEARCH_SELECTORS,
+    LOGIN_BUTTON_SELECTOR,
+    MANAGE_RESERVATION_SELECTOR,
+    OPERA_RESULT_SIGNATURE_SCRIPT,
+    PASSWORD_SELECTOR,
+    PROFILE_SELECTOR,
+    RATE_LINK_SELECTOR,
+    RESERVATION_INPUT_SELECTOR,
+    RESERVATIONS_SELECTOR,
+    RESULT_COUNT_SELECTOR,
+    SEARCH_BUTTON_SELECTOR,
+    SEARCH_MODE_SELECTOR,
+    TOTAL_VALUE_SELECTOR,
+    USERNAME_SELECTOR,
+)
+from automations.booking_opera.opera_selectors import (
+    CLOSE_RATE_SELECTOR as CLOSE_RATE_SELECTOR,
+)
+from automations.booking_opera.opera_selectors import (
+    HOTEL_INPUT_SELECTOR as HOTEL_INPUT_SELECTOR,
+)
+from automations.booking_opera.opera_selectors import (
+    HOTEL_RESULT_SELECTOR as HOTEL_RESULT_SELECTOR,
+)
+from automations.booking_opera.opera_selectors import (
+    HOTEL_SEARCH_SELECTOR as HOTEL_SEARCH_SELECTOR,
+)
 
 POLL_INTERVAL = 0.25
 ACTION_SETTLE_SECONDS = 0.25
@@ -40,252 +87,6 @@ OPERA_RETRYABLE_ERRORS = (*TRANSIENT_BROWSER_ERRORS, RuntimeError)
 
 class BookingPageRefreshed(RuntimeError):
     """Signals that Booking invalidated the JavaScript execution context."""
-
-BOOKING_USERNAME_SELECTORS = (
-    "#loginname",
-    'css:input[name="loginname"]',
-    'css:input[name="username"]',
-    'css:input[type="email"]',
-    'css:input[autocomplete="username"]',
-)
-BOOKING_PASSWORD_SELECTORS = (
-    "#password",
-    'css:input[name="password"]',
-    'css:input[type="password"]',
-    'css:input[autocomplete="current-password"]',
-)
-COLUMN_BUTTON_XPATH = (
-    "/html/body/div[1]/div/div[2]/div/div/div/main/div/div/"
-    "div[2]/div[2]/div[2]/span/button"
-)
-OPEN_COLUMNS_PANEL_SCRIPT = f"""
-const button = document.evaluate(
-    {COLUMN_BUTTON_XPATH!r}, document, null,
-    XPathResult.FIRST_ORDERED_NODE_TYPE, null
-).singleNodeValue;
-if (!button) return 'not-found';
-const style = window.getComputedStyle(button);
-const rect = button.getBoundingClientRect();
-if (style.display === 'none' || style.visibility === 'hidden' ||
-        rect.width <= 0 || rect.height <= 0) return 'not-visible';
-if (button.disabled || button.getAttribute('aria-disabled') === 'true')
-    return 'disabled';
-button.scrollIntoView({{block: 'center', inline: 'center'}});
-button.click();
-return 'clicked';
-"""
-BOOKING_REPORT_ROW_COUNT_SCRIPT = """
-return Array.from(document.querySelectorAll('table'))
-    .filter(table => {
-        const rect = table.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-    })
-    .reduce((count, table) => Math.max(
-        count, table.querySelectorAll('tbody > tr').length
-    ), 0);
-"""
-SELECT_ALL_BOOKING_ROWS_SCRIPT = """
-const select = document.querySelector(
-    'select[aria-label="itemsPerPageDisplayed"]'
-);
-if (!select || !select.options.length) return null;
-const value = select.options[select.options.length - 1].value;
-const setter = Object.getOwnPropertyDescriptor(
-    HTMLSelectElement.prototype, 'value'
-).set;
-setter.call(select, value);
-select.dispatchEvent(new Event('input', {bubbles: true}));
-select.dispatchEvent(new Event('change', {bubbles: true}));
-return value;
-"""
-BOOKING_TABLE_SNAPSHOT_SCRIPT = r"""
-const clean = value => (value || '').replace(/\u00a0/g, ' ').trim();
-const tables = Array.from(document.querySelectorAll('table')).filter(table => {
-    const rect = table.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 &&
-        table.querySelectorAll('tbody > tr').length > 0;
-});
-const table = tables.find(candidate => {
-    const headers = Array.from(candidate.querySelectorAll('thead th'))
-        .map(cell => clean(cell.innerText).toLowerCase());
-    return headers.some(header =>
-        header.includes('book number') ||
-        header.includes('booking number') ||
-        header.includes('número da reserva') ||
-        header.includes('numero da reserva')
-    );
-}) || tables[0];
-if (!table) return [[], []];
-const headers = Array.from(table.querySelectorAll('thead th'))
-    .map(cell => clean(cell.innerText));
-const rows = Array.from(table.querySelectorAll('tbody > tr')).map(row =>
-    Array.from(row.querySelectorAll('td')).map(cell => {
-        const checkbox = cell.querySelector('input[type="checkbox"]');
-        return checkbox ? (checkbox.checked ? 'Sim' : 'Não')
-            : clean(cell.innerText);
-    })
-);
-return [headers, rows];
-"""
-COLUMN_SELECTION_SCRIPT = r"""
-const normalizeText = value => (value || '').replace(/\s+/g, ' ')
-    .trim().toLowerCase();
-const isVisible = element => {
-    const style = window.getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== 'none' && style.visibility !== 'hidden' &&
-        rect.width > 0 && rect.height > 0;
-};
-const hasApplyLabel = element => [
-    element.innerText,
-    element.textContent,
-    element.value,
-    element.getAttribute('aria-label'),
-    element.getAttribute('title')
-].some(value => {
-    const label = normalizeText(value);
-    return label === 'apply' || label === 'aplicar' ||
-        label.startsWith('apply ') || label.startsWith('aplicar ');
-});
-const applyLabel = Array.from(document.querySelectorAll('body *'))
-    .reverse()
-    .find(element => isVisible(element) && hasApplyLabel(element));
-const apply = applyLabel && (
-    applyLabel.closest(
-        'button, [role="button"], input[type="button"], input[type="submit"]'
-    ) || applyLabel
-);
-if (!apply) return {ready: false, reason: 'apply-not-found'};
-
-let panel = apply.parentElement;
-let controls = [];
-while (panel && panel !== document.body) {
-    const inputs = Array.from(
-        panel.querySelectorAll('input[type="checkbox"]')
-    );
-    const roles = Array.from(panel.querySelectorAll('[role="checkbox"]'));
-    controls = inputs.length ? inputs : roles;
-    if (controls.length) break;
-    panel = panel.parentElement;
-}
-if (!controls.length) return {ready: false, reason: 'checkboxes-not-found'};
-
-let changed = 0;
-for (const control of controls) {
-    const disabled = Boolean(control.disabled) ||
-        control.getAttribute('aria-disabled') === 'true';
-    const checked = Boolean(control.checked) ||
-        control.getAttribute('aria-checked') === 'true';
-    if (!disabled && !checked) {
-        control.click();
-        changed += 1;
-    }
-}
-return {ready: true, total: controls.length, changed};
-"""
-APPLY_COLUMNS_SCRIPT = r"""
-const normalizeText = value => (value || '').replace(/\s+/g, ' ')
-    .trim().toLowerCase();
-const hasApplyLabel = element => [
-    element.innerText,
-    element.textContent,
-    element.value,
-    element.getAttribute('aria-label'),
-    element.getAttribute('title')
-].some(value => {
-    const label = normalizeText(value);
-    return label === 'apply' || label === 'aplicar' ||
-        label.startsWith('apply ') || label.startsWith('aplicar ');
-});
-const isVisible = element => {
-    const style = window.getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== 'none' && style.visibility !== 'hidden' &&
-        rect.width > 0 && rect.height > 0;
-};
-const applyLabel = Array.from(document.querySelectorAll('body *'))
-    .reverse()
-    .find(element => isVisible(element) && hasApplyLabel(element));
-const apply = applyLabel && (
-    applyLabel.closest(
-        'button, [role="button"], input[type="button"], input[type="submit"]'
-    ) || applyLabel
-);
-if (!apply) return false;
-apply.click();
-return true;
-"""
-USERNAME_SELECTOR = 'xpath://*[@id="idcs-signin-basic-signin-form-username"]'
-PASSWORD_SELECTOR = 'xpath://*[@id="idcs-signin-basic-signin-form-password|input"]'
-LOGIN_BUTTON_SELECTOR = 'xpath://*[@id="idcs-signin-basic-signin-form-submit"]/button'
-CONTINUE_BUTTON_SELECTOR = 'xpath://*[@id="ode_init_ovrdbtn"]'
-PROFILE_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:ode_pg_mnhdr_rght_cntnt_lnk"]'
-CHANGE_LOCATION_SELECTOR = (
-    "xpath:/html/body/div[1]/form/div/div[2]/div/table/tbody/tr[2]/td[2]/table/"
-    "tbody/tr/td/div/div/div[2]/div/div[1]/div[1]/a/span"
-)
-HOTEL_INPUT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:pt_r1:0:pt1:oc_pnl_lstng_tmpl:oc_pnl_tmpl_323z8b:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:fe2:it1:odec_it_it::content"]'
-HOTEL_SEARCH_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:pt_r1:0:pt1:oc_pnl_lstng_tmpl:oc_pnl_tmpl_323z8b:oc_pnl_lstng_vw_srch_swtchr:odec_srch_swtchr_advncd_sf:odec_srch_swtchr_advncd_srch_btn"]'
-HOTEL_RESULT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:pt_r1:0:ab1:odec_axn_br_axns_pstv_i:0:odec_axn_br_axn_pstv"]'
-HOTEL_INPUT_SELECTORS = (
-    HOTEL_INPUT_SELECTOR,
-    'xpath://input[contains(@id, "oc_pnl_lstng_vw_srch_swtchr") and contains(@id, "odec_it_it::content")]',
-    'xpath://input[contains(@id, "odec_srch_swtchr_advncd_sf") and @type="text"]',
-)
-HOTEL_SEARCH_SELECTORS = (
-    HOTEL_SEARCH_SELECTOR,
-    'xpath://*[contains(@id, "odec_srch_swtchr_advncd_srch_btn")]',
-)
-HOTEL_RESULT_SELECTORS = (
-    HOTEL_RESULT_SELECTOR,
-    'xpath://*[contains(@id, "odec_axn_br_axns_pstv_i:0") and contains(@id, "odec_axn_br_axn_pstv")]',
-)
-BOOKINGS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:1:odec_drpmn_mb_mn"]/div'
-RESERVATIONS_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:1:odec_drpmn_mb_mn_grp:2:odec_drpmn_mb_mn_si"]/td[2]'
-MANAGE_RESERVATION_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:dm1:odec_drpmn_mb_grp:1:odec_drpmn_mb_mn_grp:2:odec_drpmn_mb_mn_si_grp:2:odec_drpmn_mb_mn_grp_itm"]'
-SEARCH_MODE_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:1:pt1:oc_srch_tmpl_167b9q:ode_bscrn_tmpl:oc_srch_swtchr:odec_srch_swtchr_advncd_sf:odec_srch_swtchr_advncd_swtch_lnk"]'
-RESERVATION_INPUT_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:1:pt1:oc_srch_tmpl_167b9q:ode_bscrn_tmpl:oc_srch_swtchr:odec_srch_swtchr_bsc_ts:odec_ts_sbfrm:odec_ts_inpt::content"]'
-SEARCH_BUTTON_SELECTOR = 'xpath://*[@id="pt1:oc_pg_pt:mainRegion:1:pt1:oc_srch_tmpl_167b9q:ode_bscrn_tmpl:oc_srch_swtchr:odec_srch_swtchr_bsc_ts:odec_ts_sbfrm:odec_ts_srch"]'
-RATE_LINK_SELECTOR = 'xpath://*[contains(@id, "oc_srch_rslts_tbl_tmpl") and contains(@id, ":ca3:occ_crncy_amt_lnk::text")]'
-RESULT_COUNT_SELECTOR = (
-    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/"
-    "tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/span[5]/"
-    "div/div/div/div/div/div[1]/div[5]/span/span[2]/span/div/div[2]/div/"
-    "div[1]/div/div/table/tbody/tr/td[2]"
-)
-TOTAL_VALUE_SELECTOR = 'xpath://*[contains(@id, "oc_srch_rslts_tbl_tmpl") and contains(@id, ":CurrencyAmount245:occ_crncy_amt")]'
-CLOSE_RATE_SELECTOR = 'xpath://*[contains(@id, "oc_srch_rslts_tbl_tmpl") and contains(@id, ":oc_pnl_axnbr:odec_axn_br_axns_pstv")]'
-CLOSE_RATE_SELECTORS = (
-    CLOSE_RATE_SELECTOR,
-    'xpath://*[normalize-space()="Close" or normalize-space()="Fechar"]/'
-    'ancestor-or-self::*[self::button or self::a or @role="button"][1]',
-)
-OPERA_RESULT_SIGNATURE_SCRIPT = r"""
-const rates = Array.from(document.querySelectorAll(
-    '[id*="oc_srch_rslts_tbl_tmpl"][id*="occ_crncy_amt_lnk"]'
-));
-const rate = rates.find(element => {
-    const rect = element.getBoundingClientRect();
-    const style = window.getComputedStyle(element);
-    return rect.width > 0 && rect.height > 0 &&
-        style.display !== 'none' && style.visibility !== 'hidden';
-}) || rates[0];
-let row = rate && rate.closest('tr');
-let resultRow = row;
-while (row) {
-    const text = (row.innerText || '').replace(/\s+/g, ' ').trim();
-    if (text.length >= 40) {
-        resultRow = row;
-        break;
-    }
-    const parentRow = row.parentElement && row.parentElement.closest('tr');
-    if (!parentRow) break;
-    resultRow = parentRow;
-    row = parentRow;
-}
-return (resultRow && resultRow.innerText || '').replace(/\u00a0/g, ' ')
-    .replace(/\s+/g, ' ').trim();
-"""
 
 
 def create_browser() -> Chromium:
