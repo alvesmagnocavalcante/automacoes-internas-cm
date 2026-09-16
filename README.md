@@ -176,9 +176,9 @@ O mesmo usuário e senha `OPERA_USERNAME`/`OPERA_PASSWORD` são usados em todas.
 | Charme | `BOOKING_CHARME_USERNAME` e `BOOKING_CHARME_PASSWORD` | `OPERA_HOTEL_CHARME` |
 | Wind | `BOOKING_WIND_USERNAME` e `BOOKING_WIND_PASSWORD` | `OPERA_HOTEL_WIND` |
 
-Cadastre os nomes dos hotéis como **Variables** do repositório (exceto o
-`OPERA_HOTEL` já existente, que pode permanecer Secret). Acarizinho está
-previsto por `BOOKING_ACARIZINHO_USERNAME`, `BOOKING_ACARIZINHO_PASSWORD` e
+Cadastre os nomes dos hotéis como **Secrets** do repositório, assim como o
+`OPERA_HOTEL` já existente. Acarizinho está previsto por
+`BOOKING_ACARIZINHO_USERNAME`, `BOOKING_ACARIZINHO_PASSWORD` e
 `OPERA_HOTEL_ACARIZINHO`, mas não participa da execução conjunta até que suas
 credenciais estejam disponíveis. Para conferir uma única empresa, use
 `uv run python main.py booking-opera --company CHARME`; sem `--company` nem

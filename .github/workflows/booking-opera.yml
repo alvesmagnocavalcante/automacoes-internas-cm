@@ -35,10 +35,10 @@ jobs:
       OPERA_USERNAME: ${{ secrets.OPERA_USERNAME }}
       OPERA_PASSWORD: ${{ secrets.OPERA_PASSWORD }}
       OPERA_HOTEL: ${{ secrets.OPERA_HOTEL }}
-      OPERA_HOTEL_MAGNA: ${{ vars.OPERA_HOTEL_MAGNA }}
-      OPERA_HOTEL_CHARME: ${{ vars.OPERA_HOTEL_CHARME }}
-      OPERA_HOTEL_WIND: ${{ vars.OPERA_HOTEL_WIND }}
-      OPERA_HOTEL_ACARIZINHO: ${{ vars.OPERA_HOTEL_ACARIZINHO }}
+      OPERA_HOTEL_MAGNA: ${{ secrets.OPERA_HOTEL_MAGNA }}
+      OPERA_HOTEL_CHARME: ${{ secrets.OPERA_HOTEL_CHARME }}
+      OPERA_HOTEL_WIND: ${{ secrets.OPERA_HOTEL_WIND }}
+      OPERA_HOTEL_ACARIZINHO: ${{ secrets.OPERA_HOTEL_ACARIZINHO }}
 
     steps:
       - name: Baixar código
