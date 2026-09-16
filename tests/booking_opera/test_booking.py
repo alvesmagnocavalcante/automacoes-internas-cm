@@ -4,7 +4,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from automations.booking_opera import browser as booking_browser
-from automations.booking_opera import config_from_env, run
+from automations.booking_opera import company_config_from_env, config_from_env, run
 from automations.booking_opera.domain import (
     compare_records,
     consolidate_grouped_record,
@@ -21,6 +21,82 @@ from automations.booking_opera.models import (
 
 
 class BookingTests(TestCase):
+    def test_company_configuration_isolated_by_credentials_hotel_and_output(self):
+        environment = {
+            "BOOKING_USERNAME": "magna-antigo",
+            "BOOKING_PASSWORD": "senha-magna-antiga",
+            "OPERA_USERNAME": "opera-compartilhado",
+            "OPERA_PASSWORD": "senha-opera",
+            "OPERA_HOTEL": "MAGNA",
+            "BOOKING_CHARME_USERNAME": "charme",
+            "BOOKING_CHARME_PASSWORD": "senha-charme",
+            "OPERA_HOTEL_CHARME": "CHARME",
+            "BOOKING_WIND_USERNAME": "wind",
+            "BOOKING_WIND_PASSWORD": "senha-wind",
+            "OPERA_HOTEL_WIND": "WIND",
+            "BOOKING_ARCHIVE_DIR": "arquivo",
+        }
+        with patch.dict("os.environ", environment, clear=True):
+            magna = company_config_from_env("MAGNA")
+            charme = company_config_from_env("CHARME")
+            wind = company_config_from_env("WIND")
+
+        self.assertEqual(
+            [config.booking_username for config in (magna, charme, wind)],
+            ["magna-antigo", "charme", "wind"],
+        )
+        self.assertEqual(
+            [config.hotel_name for config in (magna, charme, wind)],
+            ["MAGNA", "CHARME", "WIND"],
+        )
+        self.assertEqual(
+            [config.opera_username for config in (magna, charme, wind)],
+            ["opera-compartilhado"] * 3,
+        )
+        self.assertEqual(
+            [config.output_dir for config in (magna, charme, wind)],
+            [Path("output/magna"), Path("output/charme"), Path("output/wind")],
+        )
+        self.assertEqual(charme.archive_dir, Path("arquivo/charme"))
+        for config in (magna, charme, wind):
+            config.validate()
+
+    def test_company_configuration_does_not_reuse_magna_credentials_for_charme(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "BOOKING_USERNAME": "magna",
+                "BOOKING_PASSWORD": "senha",
+                "OPERA_USERNAME": "opera",
+                "OPERA_PASSWORD": "senha",
+                "OPERA_HOTEL": "MAGNA",
+            },
+            clear=True,
+        ):
+            config = company_config_from_env("CHARME")
+
+        with self.assertRaisesRegex(ValueError, "usuário Booking"):
+            config.validate()
+
+    def test_partial_magna_credentials_do_not_mix_with_legacy_pair(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "BOOKING_USERNAME": "magna-antigo",
+                "BOOKING_PASSWORD": "senha-antiga",
+                "BOOKING_MAGNA_USERNAME": "magna-novo",
+                "OPERA_USERNAME": "opera",
+                "OPERA_PASSWORD": "senha-opera",
+                "OPERA_HOTEL": "MAGNA",
+            },
+            clear=True,
+        ):
+            config = company_config_from_env("MAGNA")
+
+        self.assertEqual(config.booking_username, "magna-novo")
+        with self.assertRaisesRegex(ValueError, "senha Booking"):
+            config.validate()
+
     def test_archive_directory_comes_from_environment_and_can_be_overridden(self):
         with patch.dict("os.environ", {}, clear=True):
             self.assertIsNone(config_from_env().archive_dir)
@@ -889,10 +965,15 @@ class BookingTests(TestCase):
         ]
         rows = [["123", "Concluída", "100", "100", "10", ""]]
         opera_steps = []
+        browsers = []
 
         class Browser:
+            def __init__(self):
+                self.closed = False
+                browsers.append(self)
+
             def quit(self):
-                pass
+                self.closed = True
 
         def unavailable_total(*_args):
             raise RuntimeError("indisponível")
@@ -936,6 +1017,8 @@ class BookingTests(TestCase):
                 opera_steps,
                 ["login", "hotel:Resort Teste", "reservations", "total"],
             )
+            self.assertEqual(len(browsers), 2)
+            self.assertTrue(all(browser.closed for browser in browsers))
 
     def test_run_closes_browser_when_booking_extraction_fails(self):
         browsers = []

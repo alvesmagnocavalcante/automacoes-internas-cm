@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 from threading import Event
 
@@ -17,10 +18,16 @@ from automations.booking_opera.models import (
 )
 from automations.booking_opera.service import BookingReconciliationService
 
+ACTIVE_COMPANIES = ("MAGNA", "CHARME", "WIND")
+SUPPORTED_COMPANIES = (*ACTIVE_COMPANIES, "ACARIZINHO")
+
 __all__ = [
     "BookingConfig",
     "BookingDependencies",
     "BookingResult",
+    "ACTIVE_COMPANIES",
+    "SUPPORTED_COMPANIES",
+    "company_config_from_env",
     "config_from_env",
     "default_dependencies",
     "run",
@@ -65,4 +72,34 @@ def config_from_env(
         opera_url=os.getenv("OPERA_URL", OPERA_URL),
         archive_dir=archive_dir
         or (Path(configured_archive) if configured_archive else None),
+    )
+
+
+def company_config_from_env(
+    company: str,
+    output_dir: Path | None = None,
+    archive_dir: Path | None = None,
+) -> BookingConfig:
+    company = company.upper()
+    if company not in SUPPORTED_COMPANIES:
+        raise ValueError(f"Empresa Booking não suportada: {company}")
+
+    shared = config_from_env(output_dir, archive_dir)
+    username = os.getenv(f"BOOKING_{company}_USERNAME", "")
+    password = os.getenv(f"BOOKING_{company}_PASSWORD", "")
+    if company == "MAGNA" and not (username or password):
+        username, password = shared.booking_username, shared.booking_password
+
+    hotel = os.getenv(f"OPERA_HOTEL_{company}", "").strip()
+    if company == "MAGNA" and not hotel:
+        hotel = shared.hotel_name
+
+    folder = company.lower()
+    return replace(
+        shared,
+        booking_username=username,
+        booking_password=password,
+        hotel_name=hotel,
+        output_dir=shared.output_dir / folder,
+        archive_dir=shared.archive_dir / folder if shared.archive_dir else None,
     )

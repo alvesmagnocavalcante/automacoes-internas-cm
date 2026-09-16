@@ -154,24 +154,45 @@ Cadastre os seguintes secrets em
 
 | Secret | Finalidade |
 | --- | --- |
-| `BOOKING_USERNAME` | Usuário de acesso à Booking. |
-| `BOOKING_PASSWORD` | Senha de acesso à Booking. |
+| `BOOKING_USERNAME` | Usuário Booking da Magna (configuração existente). |
+| `BOOKING_PASSWORD` | Senha Booking da Magna (configuração existente). |
 | `OPERA_USERNAME` | Usuário de acesso ao OPERA. |
 | `OPERA_PASSWORD` | Senha de acesso ao OPERA. |
-| `OPERA_HOTEL` | Nome exato do hotel ou resort no OPERA. |
+| `OPERA_HOTEL` | Hotel da Magna no OPERA (configuração existente). |
 
 A execução manual está disponível em
 **Actions → Conciliação Booking x OPERA → Run workflow**.
 
 O agendamento permanece desabilitado no workflow; a execução atual é manual.
 
+O workflow confere `MAGNA`, `CHARME` e `WIND` nessa ordem, sem executar duas
+empresas ao mesmo tempo. Antes de abrir o navegador, valida as credenciais e o
+hotel OPERA das três; se uma conferência falhar, as seguintes não começam.
+O mesmo usuário e senha `OPERA_USERNAME`/`OPERA_PASSWORD` são usados em todas.
+
+| Empresa | Secrets de acesso Booking | Configuração do hotel no OPERA |
+| --- | --- | --- |
+| Magna | `BOOKING_USERNAME` e `BOOKING_PASSWORD` existentes, ou o par `BOOKING_MAGNA_USERNAME`/`BOOKING_MAGNA_PASSWORD` | `OPERA_HOTEL` existente, ou `OPERA_HOTEL_MAGNA` |
+| Charme | `BOOKING_CHARME_USERNAME` e `BOOKING_CHARME_PASSWORD` | `OPERA_HOTEL_CHARME` |
+| Wind | `BOOKING_WIND_USERNAME` e `BOOKING_WIND_PASSWORD` | `OPERA_HOTEL_WIND` |
+
+Cadastre os nomes dos hotéis como **Variables** do repositório (exceto o
+`OPERA_HOTEL` já existente, que pode permanecer Secret). Acarizinho está
+previsto por `BOOKING_ACARIZINHO_USERNAME`, `BOOKING_ACARIZINHO_PASSWORD` e
+`OPERA_HOTEL_ACARIZINHO`, mas não participa da execução conjunta até que suas
+credenciais estejam disponíveis. Para conferir uma única empresa, use
+`uv run python main.py booking-opera --company CHARME`; sem `--company` nem
+`--all-companies`, o comando local mantém o comportamento anterior.
+
 Para salvar também o Excel final em uma pasta escolhida por você, cadastre a
 Variable `BOOKING_ARCHIVE_DIR` em **Settings → Secrets and variables → Actions**
 com o caminho dessa pasta. O caminho deve ser acessível pelo runner que executa
-o workflow (no webtop, use um caminho Linux ou um volume montado). A cópia recebe
-data e hora no nome para preservar execuções anteriores; o arquivo original em
-`output/` e o artefato do Actions permanecem disponíveis. Sem a Variable, não há
-cópia adicional. Localmente, também é possível usar `--archive-dir`.
+o workflow (no webtop, use um caminho Linux ou um volume montado). Na execução
+conjunta, cada empresa recebe sua própria subpasta nessa raiz. A cópia recebe
+data e hora no nome para preservar execuções anteriores; os arquivos em
+`output/<empresa>/` e o artefato do Actions permanecem disponíveis. Sem a
+Variable, não há cópia adicional. Localmente, também é possível usar
+`--archive-dir`.
 
 ## Configuração da conferência de recebimentos
 
@@ -201,7 +222,8 @@ Nesta etapa, ele baixa os relatórios do OPERA e do CMFlex e publica o artefato
 
 ### Arquivos gerados
 
-Os relatórios são gravados no diretório `output/`:
+Na execução conjunta, os relatórios são gravados em `output/magna/`,
+`output/charme/` e `output/wind/`. Em cada subpasta são gerados:
 
 - `reservas_booking.csv`;
 - `conferencia_booking_opera.csv`;
