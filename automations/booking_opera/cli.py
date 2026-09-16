@@ -43,7 +43,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     selection.add_argument(
         "--all-companies",
         action="store_true",
-        help="Executa Magna, Charme e Wind em sequência.",
+        help="Executa Charme, Wind e Magna em sequência.",
     )
     parser.add_argument(
         "--fail-on-divergence",

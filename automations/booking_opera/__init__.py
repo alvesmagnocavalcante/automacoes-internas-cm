@@ -18,7 +18,7 @@ from automations.booking_opera.models import (
 )
 from automations.booking_opera.service import BookingReconciliationService
 
-ACTIVE_COMPANIES = ("MAGNA", "CHARME", "WIND")
+ACTIVE_COMPANIES = ("CHARME", "WIND", "MAGNA")
 SUPPORTED_COMPANIES = (*ACTIVE_COMPANIES, "ACARIZINHO")
 
 __all__ = [

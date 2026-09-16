@@ -20,7 +20,7 @@ class BookingOperaCliTests(TestCase):
     def test_all_companies_stop_after_first_failed_run(self):
         configs = [
             SimpleNamespace(hotel_name=name, validate=lambda: None)
-            for name in ("MAGNA", "CHARME", "WIND")
+            for name in ("CHARME", "WIND", "MAGNA")
         ]
         with (
             patch.object(cli, "company_config_from_env", side_effect=configs),
@@ -53,12 +53,12 @@ class BookingOperaCliTests(TestCase):
                     "OPERA_PASSWORD": "senha",
                     **{
                         f"BOOKING_{name}_{field}": f"{name}-{field}"
-                        for name in ("MAGNA", "CHARME", "WIND")
+                        for name in ("CHARME", "WIND", "MAGNA")
                         for field in ("USERNAME", "PASSWORD")
                     },
                     **{
                         f"OPERA_HOTEL_{name}": name
-                        for name in ("MAGNA", "CHARME", "WIND")
+                        for name in ("CHARME", "WIND", "MAGNA")
                     },
                 },
                 clear=True,
@@ -68,7 +68,7 @@ class BookingOperaCliTests(TestCase):
             exit_code = cli.main(["--all-companies"])
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(events, ["MAGNA", "CHARME", "WIND"])
+        self.assertEqual(events, ["CHARME", "WIND", "MAGNA"])
 
     def test_returns_two_when_requested_and_result_has_divergences(self):
         result = SimpleNamespace(

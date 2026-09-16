@@ -165,7 +165,7 @@ A execução manual está disponível em
 
 O agendamento permanece desabilitado no workflow; a execução atual é manual.
 
-O workflow confere `MAGNA`, `CHARME` e `WIND` nessa ordem, sem executar duas
+O workflow confere `CHARME`, `WIND` e `MAGNA` nessa ordem, sem executar duas
 empresas ao mesmo tempo. Antes de abrir o navegador, valida as credenciais e o
 hotel OPERA das três; se uma conferência falhar, as seguintes não começam.
 O mesmo usuário e senha `OPERA_USERNAME`/`OPERA_PASSWORD` são usados em todas.
