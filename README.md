@@ -190,6 +190,10 @@ A execução manual está em
 automaticamente de `RECEBIMENTOS_OPERA_HOTEL`, priorizando o Secret e usando a
 Variable do repositório como alternativa. Se os secrets exclusivos de usuário e
 senha não existirem, o workflow utiliza `OPERA_USERNAME` e `OPERA_PASSWORD`.
+Para o CMFlex, também aceita `CMFLEX_USERNAME` e `CMFLEX_PASSWORD`. As
+credenciais devem estar em **Secrets do repositório** (não em Variables).
+Secrets cadastrados em um Environment não ficam disponíveis neste job sem
+vincular esse Environment ao workflow.
 Nesta etapa, ele baixa os relatórios do OPERA e do CMFlex e publica o artefato
 `conferencia-recebimentos-<número-da-execução>`.
 

@@ -23,8 +23,8 @@ jobs:
       RECEBIMENTOS_OPERA_USERNAME: ${{ secrets.RECEBIMENTOS_OPERA_USERNAME || secrets.OPERA_USERNAME }}
       RECEBIMENTOS_OPERA_PASSWORD: ${{ secrets.RECEBIMENTOS_OPERA_PASSWORD || secrets.OPERA_PASSWORD }}
       RECEBIMENTOS_OPERA_HOTEL: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL || vars.RECEBIMENTOS_OPERA_HOTEL }}
-      RECEBIMENTOS_CMFLEX_USERNAME: ${{ secrets.RECEBIMENTOS_CMFLEX_USERNAME }}
-      RECEBIMENTOS_CMFLEX_PASSWORD: ${{ secrets.RECEBIMENTOS_CMFLEX_PASSWORD }}
+      RECEBIMENTOS_CMFLEX_USERNAME: ${{ secrets.RECEBIMENTOS_CMFLEX_USERNAME || secrets.CMFLEX_USERNAME }}
+      RECEBIMENTOS_CMFLEX_PASSWORD: ${{ secrets.RECEBIMENTOS_CMFLEX_PASSWORD || secrets.CMFLEX_PASSWORD }}
       RECEBIMENTOS_CMFLEX_COMPANY: ${{ secrets.RECEBIMENTOS_CMFLEX_COMPANY || vars.RECEBIMENTOS_CMFLEX_COMPANY }}
       RECEBIMENTOS_REDE_DIR: ${{ vars.RECEBIMENTOS_REDE_DIR }}
       RECEBIMENTOS_ARCHIVE_ROOT: ${{ vars.RECEBIMENTOS_ARCHIVE_ROOT }}
@@ -44,6 +44,14 @@ jobs:
 
       - name: Validar automação
         run: uv run python -m unittest discover -s tests/recebimentos -v
+
+      - name: Validar credenciais do CMFlex
+        shell: powershell
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_CMFLEX_USERNAME) -or
+              [string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_CMFLEX_PASSWORD)) {
+            throw "Credenciais CMFlex ausentes. Configure os secrets RECEBIMENTOS_CMFLEX_USERNAME e RECEBIMENTOS_CMFLEX_PASSWORD (ou CMFLEX_USERNAME e CMFLEX_PASSWORD) no repositório. Secrets de Environment exigem que este job referencie o Environment."
+          }
 
       - name: Limpar relatório anterior
         shell: powershell

@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from automations.recebimentos import cmflex_browser
 from automations.recebimentos.cmflex_browser import (
@@ -321,3 +321,15 @@ class CMFlexBrowserTests(TestCase):
         self.assertEqual(result, Path("cmflex.xlsx"))
         self.assertTrue(report_tab.closed)
         self.assertEqual(browser.quit_options, {"timeout": 1, "force": False})
+
+    def test_run_rejects_missing_credentials_before_opening_browser(self):
+        browser_factory = Mock()
+
+        with self.assertRaisesRegex(ValueError, "usuário CMFlex, senha CMFlex"):
+            run_cmflex_download(
+                CMFlexConfig("", ""),
+                Path("output"),
+                browser_factory=browser_factory,
+            )
+
+        browser_factory.assert_not_called()

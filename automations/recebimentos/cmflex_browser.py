@@ -427,6 +427,7 @@ def run_cmflex_download(
     browser_factory: Callable[[], Any] | None = None,
 ) -> Path:
     """Executa o fluxo completo do CMFlex e sempre fecha o navegador."""
+    config.validate()
     browser = (browser_factory or create_browser)()
     report_tab = None
     try:
