@@ -173,25 +173,19 @@ Cadastre secrets exclusivos para esta automação:
 | --- | --- |
 | `RECEBIMENTOS_OPERA_USERNAME` | Usuário do OPERA. |
 | `RECEBIMENTOS_OPERA_PASSWORD` | Senha do OPERA. |
-| `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort para execução local. |
+| `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort. |
 | `RECEBIMENTOS_CMFLEX_USERNAME` | Usuário do CMFlex. |
 | `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha do CMFlex. |
-| `RECEBIMENTOS_CMFLEX_COMPANY` | Empresa do CMFlex, inicialmente `MAGNA`. |
-
-Cadastre também as seguintes Variables do repositório:
-
-| Variable | Finalidade |
-| --- | --- |
 | `RECEBIMENTOS_REDE_DIR` | Pasta onde o setor disponibiliza a planilha Rede. |
-| `RECEBIMENTOS_ARCHIVE_ROOT` | Raiz das pastas mensais e diárias das conferências. |
+| `RECEBIMENTOS_ARCHIVE_ROOT` | Raiz das pastas mensais e diárias; opcional, padrão `output/recebimentos/conferencias`. |
 
 A execução manual está em
-**Actions → Conferência de recebimentos → Run workflow**. O hotel é obtido
-automaticamente de `RECEBIMENTOS_OPERA_HOTEL`, priorizando o Secret e usando a
-Variable do repositório como alternativa. Se os secrets exclusivos de usuário e
-senha não existirem, o workflow utiliza `OPERA_USERNAME` e `OPERA_PASSWORD`.
-Para o CMFlex, também aceita `CMFLEX_USERNAME` e `CMFLEX_PASSWORD`. As
-credenciais devem estar em **Secrets do repositório** (não em Variables).
+**Actions → Conferência de recebimentos → Run workflow**. O workflow usa os
+Secrets `RECEBIMENTOS_*` para credenciais e caminhos, sem recorrer às
+credenciais da automação Booking × OPERA. A empresa do CMFlex é `MAGNA` por
+padrão e pode ser definida por `RECEBIMENTOS_CMFLEX_COMPANY` em Secret ou
+Variable. A pasta da Rede é obrigatória;
+sem ela, a execução falha antes dos downloads em vez de pular a conferência.
 Secrets cadastrados em um Environment não ficam disponíveis neste job sem
 vincular esse Environment ao workflow.
 Nesta etapa, ele baixa os relatórios do OPERA e do CMFlex e publica o artefato
