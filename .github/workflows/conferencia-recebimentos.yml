@@ -2,7 +2,7 @@ name: Conferência de recebimentos
 
 on:
   schedule:
-    - cron: '47 17 * * *'
+    - cron: '50 17 * * *'
       timezone: America/Sao_Paulo
   workflow_dispatch:
     inputs:
