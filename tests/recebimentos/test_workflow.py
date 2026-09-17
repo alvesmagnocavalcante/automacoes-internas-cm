@@ -38,6 +38,7 @@ class RecebimentosWorkflowTests(TestCase):
 
     def test_maps_every_opera_hotel_to_the_runner(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        for company in ("CHARME", "CUMBUCO", "ICARAIZINHO", "TAIBA", "MAGNA"):
+        for company in ("CHARME", "CUMBUCO", "TAIBA", "MAGNA"):
             with self.subTest(company=company):
                 self.assertIn(f"RECEBIMENTOS_OPERA_HOTEL_{company}:", workflow)
+        self.assertNotIn("RECEBIMENTOS_OPERA_HOTEL_ICARAIZINHO:", workflow)

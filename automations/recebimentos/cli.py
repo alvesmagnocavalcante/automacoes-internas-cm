@@ -13,7 +13,7 @@ from automations.recebimentos.cmflex_browser import (
     config_from_env as cmflex_config_from_env,
 )
 from automations.recebimentos.cmflex_browser import run_cmflex_download
-from automations.recebimentos.companies import COMPANIES
+from automations.recebimentos.companies import ACTIVE_COMPANIES
 from automations.recebimentos.daily_files import (
     find_downloaded_report,
     find_rede_report,
@@ -66,7 +66,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--all-companies",
         action="store_true",
-        help="Confere sequencialmente CHARME, CUMBUCO, ICARAIZINHO, TAIBA e MAGNA.",
+        help="Confere sequencialmente CHARME, CUMBUCO, TAIBA e MAGNA.",
     )
     parser.add_argument(
         "--allow-partial",
@@ -127,7 +127,9 @@ def _run_all_companies(args: argparse.Namespace) -> int:
     rede_reports = find_rede_reports(
         args.rede_dir, report_date, require_all=not args.allow_partial
     )
-    companies = [company for company in COMPANIES if company.code in rede_reports]
+    companies = [
+        company for company in ACTIVE_COMPANIES if company.code in rede_reports
+    ]
     if args.allow_partial:
         LOGGER.warning(
             "Teste parcial: conferindo somente %s; demais empresas não serão processadas.",

@@ -121,7 +121,7 @@ class DailyFilesTests(TestCase):
                 "CM CENTRAL SERVIÇOS",
             )
             reports = find_rede_reports(root, date(2026, 9, 14))
-            self.assertEqual(set(reports), {"CHARME", "CUMBUCO", "ICARAIZINHO", "TAIBA", "MAGNA"})
+            self.assertEqual(set(reports), {"CHARME", "CUMBUCO", "TAIBA", "MAGNA"})
             self._write_rede(root / "Rede Magna Praia 14.09.xlsx", "MAGNA PRAIA")
             with self.assertRaisesRegex(RuntimeError, "Mais de um relatório Rede de MAGNA"):
                 find_rede_reports(root, date(2026, 9, 14))
@@ -138,16 +138,19 @@ class DailyFilesTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_rede(root / "Rede Magna 14.09.xlsx", "MAGNA PRAIA")
-            with self.assertRaisesRegex(FileNotFoundError, "CHARME, CUMBUCO, ICARAIZINHO, TAIBA"):
+            with self.assertRaisesRegex(FileNotFoundError, "CHARME, CUMBUCO, TAIBA"):
                 find_rede_reports(root, date(2026, 9, 14))
             reports = find_rede_reports(root, date(2026, 9, 14), require_all=False)
             self.assertEqual(set(reports), {"MAGNA"})
 
-    def test_partial_preflight_does_not_accept_only_central_services(self):
+    def test_partial_preflight_does_not_accept_only_inactive_companies(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_rede(
                 root / "Rede_14_09_2026-central.xlsx", "CM CENTRAL SERVIÇOS"
+            )
+            self._write_rede(
+                root / "Rede_14_09_2026-icaraizinho.xlsx", "CARMEL ICARAIZINHO"
             )
             with self.assertRaisesRegex(FileNotFoundError, "Nenhum relatório Rede de hotel"):
                 find_rede_reports(root, date(2026, 9, 14), require_all=False)

@@ -54,13 +54,16 @@ class RecebimentosCliTests(TestCase):
         self.assertEqual(archive.call_count, 2)
 
     def test_all_companies_runs_sequentially_with_isolated_files(self):
-        from automations.recebimentos.companies import COMPANIES
+        from automations.recebimentos.companies import ACTIVE_COMPANIES
 
         report_date = cli.date(2026, 9, 14)
-        reports = {company.code: Path(f"entrada/rede {company.code}.xlsx") for company in COMPANIES}
+        reports = {
+            company.code: Path(f"entrada/rede {company.code}.xlsx")
+            for company in ACTIVE_COMPANIES
+        }
         env = {
             f"RECEBIMENTOS_OPERA_HOTEL_{company.code}": company.code
-            for company in COMPANIES
+            for company in ACTIVE_COMPANIES
         }
         config = SimpleNamespace(validate=lambda: None)
         result = SimpleNamespace(matched_count=1, divergent_count=0)
@@ -96,10 +99,10 @@ class RecebimentosCliTests(TestCase):
             code = cli.main(["--all-companies", "--rede-dir", "entrada"])
 
         self.assertEqual(code, 0)
-        self.assertEqual(archive.call_count, 5)
-        for company in COMPANIES:
+        self.assertEqual(archive.call_count, 4)
+        for index, company in enumerate(ACTIVE_COMPANIES):
             self.assertEqual(
-                events[COMPANIES.index(company) * 3:COMPANIES.index(company) * 3 + 3],
+                events[index * 3:index * 3 + 3],
                 [("opera", company.code), ("cmflex", company.cmflex_name),
                  ("reconcile", reports[company.code].name)],
             )

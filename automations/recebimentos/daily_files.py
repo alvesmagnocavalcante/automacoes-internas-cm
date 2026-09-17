@@ -10,7 +10,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from automations.recebimentos.companies import COMPANIES, Company
+from automations.recebimentos.companies import ACTIVE_COMPANIES, COMPANIES, Company
 from automations.recebimentos.normalization import normalize
 from automations.recebimentos.parsers import opera_xml_has_transactions
 
@@ -151,7 +151,7 @@ def find_rede_reports(
     reports: dict[str, Path] = {}
     for path in matches:
         company = identify_rede_company(path)
-        if company is None:
+        if company is None or not company.active:
             continue
         if company.code in reports:
             raise RuntimeError(
@@ -159,7 +159,9 @@ def find_rede_reports(
                 f"{reports[company.code].name}, {path.name}"
             )
         reports[company.code] = path
-    missing = [company.code for company in COMPANIES if company.code not in reports]
+    missing = [
+        company.code for company in ACTIVE_COMPANIES if company.code not in reports
+    ]
     if missing and require_all:
         raise FileNotFoundError(
             f"Relatórios Rede de {report_date:%d/%m/%Y} ausentes em {directory}: "

@@ -216,14 +216,13 @@ próprios; não recebe automaticamente os secrets `OPERA_*` do workflow Booking.
 | `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha CMFlex; obrigatória e usada para todas as empresas. |
 | `RECEBIMENTOS_OPERA_HOTEL_CHARME` | Localização CHARME no OPERA; obrigatória quando CHARME é conferida. |
 | `RECEBIMENTOS_OPERA_HOTEL_CUMBUCO` | Localização CUMBUCO no OPERA; obrigatória quando CUMBUCO é conferida. |
-| `RECEBIMENTOS_OPERA_HOTEL_ICARAIZINHO` | Localização ICARAIZINHO no OPERA; obrigatória quando ICARAIZINHO é conferida. |
 | `RECEBIMENTOS_OPERA_HOTEL_TAIBA` | Localização TAIBA no OPERA; obrigatória quando TAIBA é conferida. |
 | `RECEBIMENTOS_OPERA_HOTEL_MAGNA` | Localização MAGNA no OPERA; use esta ou `RECEBIMENTOS_OPERA_HOTEL`. |
 | `RECEBIMENTOS_OPERA_HOTEL` | Localização MAGNA existente; usada se `RECEBIMENTOS_OPERA_HOTEL_MAGNA` estiver vazia. |
 | `RECEBIMENTOS_REDE_DIR` | Pasta dos Excel da Rede acessível pelo runner; obrigatória. |
 | `RECEBIMENTOS_ARCHIVE_ROOT` | Pasta de destino das conferências; opcional, padrão `output/recebimentos/conferencias`. |
 
-Os cinco nomes de localização podem ser cadastrados como **Repository
+Os quatro nomes de localização podem ser cadastrados como **Repository
 Variables**, em vez de Secrets, com os mesmos nomes: o workflow tenta primeiro
 o Secret e depois a Variable. Usuários e senhas devem permanecer em Secrets.
 Na execução parcial (`allow_partial`), só são exigidas as localizações das
@@ -233,7 +232,7 @@ A execução manual está em
 **Actions → Conferência de recebimentos → Run workflow**. O workflow usa os
 Secrets `RECEBIMENTOS_*` para credenciais e caminhos, sem recorrer às
 credenciais da automação Booking × OPERA. Executa sequencialmente CHARME,
-CUMBUCO, ICARAIZINHO, TAIBA e MAGNA; CM CENTRAL SERVIÇOS é ignorada. No
+CUMBUCO, TAIBA e MAGNA; CM CENTRAL SERVIÇOS e ICARAIZINHO são ignoradas. No
 CMFlex, seleciona as empresas pelos nomes completos apresentados na lista.
 O estabelecimento `CARMEL WIND` na Rede é identificado como CUMBUCO e
 seleciona `CARMEL CUMBUCO` no CMFlex; não cria uma sexta conferência.
@@ -243,10 +242,11 @@ coluna `nome do estabelecimento` para identificar a empresa. O nome precisa
 conter `Rede` e a data (`DD.MM`, `DD-MM`, `DD_MM` ou `AAAA-MM-DD`). Se também
 contiver uma empresa, ela deve coincidir com o conteúdo. Arquivos sem
 identificação, com empresas misturadas, duplicados ou ausentes interrompem a
-execução antes dos downloads. A empresa CM CENTRAL SERVIÇOS é ignorada.
+execução antes dos downloads. Arquivos de ICARAIZINHO são reconhecidos, mas
+não exigidos nem processados enquanto a empresa estiver inativa.
 Para testes com apenas parte das planilhas, marque `allow_partial` em
 **Run workflow** (ou use `--all-companies --allow-partial` localmente). Sem
-essa opção, a execução exige as cinco empresas para evitar conferências
+essa opção, a execução exige as quatro empresas ativas para evitar conferências
 diárias incompletas.
 Os três relatórios Excel de cada empresa são arquivados em
 `RECEBIMENTOS_ARCHIVE_ROOT/MM - MÊS/DD/EMPRESA/`; downloads ficam separados

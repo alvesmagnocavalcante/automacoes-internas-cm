@@ -11,6 +11,7 @@ class Company:
     code: str
     cmflex_name: str
     rede_names: tuple[str, ...]
+    active: bool = True
 
     @property
     def opera_hotel(self) -> str:
@@ -23,10 +24,15 @@ class Company:
 COMPANIES = (
     Company("CHARME", "CARMEL CHARME HOSPEDAGEM", ("charme",)),
     Company("CUMBUCO", "CARMEL CUMBUCO", ("cumbuco", "wind")),
-    Company("ICARAIZINHO", "CARMEL ICARAIZINHO", ("icaraizinho", "acarizinho")),
+    Company(
+        "ICARAIZINHO", "CARMEL ICARAIZINHO",
+        ("icaraizinho", "acarizinho"), active=False,
+    ),
     Company("TAIBA", "CARMEL TAÍBA", ("taiba",)),
     Company("MAGNA", "MAGNA PRAIA", ("magna",)),
 )
+
+ACTIVE_COMPANIES = tuple(company for company in COMPANIES if company.active)
 
 
 def get_company(code: str) -> Company:
