@@ -417,10 +417,8 @@ class OperaBrowserTests(TestCase):
             opera_browser.REPORT_SEARCH_SELECTORS[0],
             "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[4]/span/span/div/div[2]/div/div/div[3]/span/span[2]/div",
         )
-        self.assertEqual(
-            opera_browser.FINANCIAL_PAYMENTS_SELECTORS[0],
-            "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[6]/span/span[1]/span/div/div/div/div/div/div[2]/div/div[2]/table/tbody/tr[4]/td[1]/div/table/tbody/tr/td[3]",
-        )
+        self.assertIn("Cashier Audit", opera_browser.FINANCIAL_PAYMENTS_SELECTORS[0])
+        self.assertNotIn("/tr[4]", opera_browser.FINANCIAL_PAYMENTS_SELECTORS[0])
         self.assertEqual(
             opera_browser.EDIT_REPORT_SELECTORS[0],
             "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[7]/span/div/div/span/span/span[2]/span[1]/span/div[3]",

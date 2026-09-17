@@ -194,6 +194,7 @@ def click_visible_any(
     timeout: int = 30,
 ) -> None:
     deadline = monotonic() + timeout
+    last_error: Exception | None = None
     while monotonic() < deadline:
         _checkpoint(cancel)
         try:
@@ -202,9 +203,12 @@ def click_visible_any(
             if settle_seconds:
                 sleep(settle_seconds)
             return
-        except (RuntimeError, *TRANSIENT_BROWSER_ERRORS):
+        except (RuntimeError, *TRANSIENT_BROWSER_ERRORS) as error:
+            last_error = error
             sleep(POLL_INTERVAL)
-    raise RuntimeError(f"{description} não respondeu ao clique.")
+    raise RuntimeError(
+        f"{description} não respondeu ao clique. Última causa: {last_error}"
+    ) from last_error
 
 
 def open_reports_and_analytics(tab: Any, cancel: Event | None = None) -> None:

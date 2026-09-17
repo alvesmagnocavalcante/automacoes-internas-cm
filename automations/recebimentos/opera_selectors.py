@@ -58,9 +58,8 @@ REPORT_SEARCH_SELECTORS = (
     'xpath://button[normalize-space()="Search" or normalize-space()="Buscar"]',
 )
 FINANCIAL_PAYMENTS_SELECTORS = (
-    "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[6]/span/span[1]/span/div/div/div/div/div/div[2]/div/div[2]/table/tbody/tr[4]/td[1]/div/table/tbody/tr/td[3]",
-    'xpath://*[@id="pt1:oc_pg_pt:mainRegion:2:pt1:oc_pnl_lst_cmp:oc_scrn_pnl_lst_tmpl:oc_scrn_tmpl_by43sy:oc_pnl_lst_tmpl:oc_pnl_lstng_tmpl:oc_pnl_tmpl_by43sy:pc1:t1:3:c4"]',
-    'xpath://*[contains(normalize-space(), "Financial Payments") or contains(normalize-space(), "Pagamentos Financeiros")]',
+    'xpath://td[normalize-space(.)="Cashier Audit" or normalize-space(.)="Financial Payments" or normalize-space(.)="Pagamentos Financeiros"]',
+    'xpath://*[self::a or self::span or self::div][normalize-space(.)="Cashier Audit" or normalize-space(.)="Financial Payments" or normalize-space(.)="Pagamentos Financeiros"]',
 )
 EDIT_REPORT_SELECTORS = (
     "xpath:/html/body/div[1]/form/span[2]/span[2]/span[2]/div[2]/table/tbody/tr/td[2]/div/div[1]/div[3]/div/div[2]/div/span[2]/span/div/div[7]/span/div/div/span/span/span[2]/span[1]/span/div[3]",
