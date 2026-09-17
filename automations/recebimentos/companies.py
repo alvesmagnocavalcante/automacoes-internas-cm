@@ -22,13 +22,13 @@ class Company:
 
 
 COMPANIES = (
+    Company("TAIBA", "CARMEL TAÍBA", ("taiba",)),
     Company("CHARME", "CARMEL CHARME HOSPEDAGEM", ("charme",)),
     Company("CUMBUCO", "CARMEL CUMBUCO", ("cumbuco", "wind")),
     Company(
         "ICARAIZINHO", "CARMEL ICARAIZINHO",
         ("icaraizinho", "acarizinho"), active=False,
     ),
-    Company("TAIBA", "CARMEL TAÍBA", ("taiba",)),
     Company("MAGNA", "MAGNA PRAIA", ("magna",)),
 )
 

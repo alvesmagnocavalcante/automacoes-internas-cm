@@ -231,8 +231,8 @@ empresas cujos arquivos da Rede estão presentes.
 A execução manual está em
 **Actions → Conferência de recebimentos → Run workflow**. O workflow usa os
 Secrets `RECEBIMENTOS_*` para credenciais e caminhos, sem recorrer às
-credenciais da automação Booking × OPERA. Executa sequencialmente CHARME,
-CUMBUCO, TAIBA e MAGNA; CM CENTRAL SERVIÇOS e ICARAIZINHO são ignoradas. No
+credenciais da automação Booking × OPERA. Executa sequencialmente TAIBA,
+CHARME, CUMBUCO e MAGNA; CM CENTRAL SERVIÇOS e ICARAIZINHO são ignoradas. No
 CMFlex, seleciona as empresas pelos nomes completos apresentados na lista.
 O estabelecimento `CARMEL WIND` na Rede é identificado como CUMBUCO e
 seleciona `CARMEL CUMBUCO` no CMFlex; não cria uma sexta conferência.

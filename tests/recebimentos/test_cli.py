@@ -56,6 +56,10 @@ class RecebimentosCliTests(TestCase):
     def test_all_companies_runs_sequentially_with_isolated_files(self):
         from automations.recebimentos.companies import ACTIVE_COMPANIES
 
+        self.assertEqual(
+            tuple(company.code for company in ACTIVE_COMPANIES),
+            ("TAIBA", "CHARME", "CUMBUCO", "MAGNA"),
+        )
         report_date = cli.date(2026, 9, 14)
         reports = {
             company.code: Path(f"entrada/rede {company.code}.xlsx")

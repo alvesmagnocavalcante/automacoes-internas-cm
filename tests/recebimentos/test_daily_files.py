@@ -138,7 +138,7 @@ class DailyFilesTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_rede(root / "Rede Magna 14.09.xlsx", "MAGNA PRAIA")
-            with self.assertRaisesRegex(FileNotFoundError, "CHARME, CUMBUCO, TAIBA"):
+            with self.assertRaisesRegex(FileNotFoundError, "TAIBA, CHARME, CUMBUCO"):
                 find_rede_reports(root, date(2026, 9, 14))
             reports = find_rede_reports(root, date(2026, 9, 14), require_all=False)
             self.assertEqual(set(reports), {"MAGNA"})

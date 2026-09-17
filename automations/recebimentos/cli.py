@@ -66,7 +66,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--all-companies",
         action="store_true",
-        help="Confere sequencialmente CHARME, CUMBUCO, TAIBA e MAGNA.",
+        help="Confere sequencialmente TAIBA, CHARME, CUMBUCO e MAGNA.",
     )
     parser.add_argument(
         "--allow-partial",
