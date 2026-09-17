@@ -84,6 +84,12 @@ class FakeMission:
 
 
 class CMFlexBrowserTests(TestCase):
+    def test_report_navigation_targets_labels_instead_of_row_numbers(self):
+        self.assertIn("Grupo: Operacionais", OPERATIONAL_GROUPS_SELECTOR)
+        self.assertIn("Lançamento de Documentos", DOCUMENT_ENTRIES_SELECTOR)
+        self.assertNotIn("/tr[24]", OPERATIONAL_GROUPS_SELECTOR)
+        self.assertNotIn("/tr[37]", DOCUMENT_ENTRIES_SELECTOR)
+
     def test_config_reads_recebimentos_environment(self):
         environment = {
             "RECEBIMENTOS_CMFLEX_USERNAME": "usuario",

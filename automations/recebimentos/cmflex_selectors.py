@@ -23,10 +23,11 @@ ACCOUNTS_RECEIVABLE_SELECTOR = (
 QUERIES_SELECTOR = "xpath:/html/body/div[1]/div/form/header/div[2]/div[4]"
 REPORTS_SELECTOR = "xpath:/html/body/div[1]/div/form/header/div[1]/div[4]/div[2]/div/div/div[2]/div[4]/ul/li/a"
 OPERATIONAL_GROUPS_SELECTOR = (
-    "xpath:/html/body/div[1]/div/form/div[8]/div[3]/table/tbody/tr[24]/td[1]/input"
+    'xpath://tr[td[contains(normalize-space(.), "Grupo: Operacionais")]]/td[1]//input'
 )
 DOCUMENT_ENTRIES_SELECTOR = (
-    "xpath:/html/body/div[1]/div/form/div[8]/div[3]/table/tbody/tr[37]/td[2]/input"
+    'xpath://tr[td[contains(normalize-space(.), "Lançamento de Documentos") '
+    'or contains(normalize-space(.), "Lançamentos de Documentos")]]/td[2]//input'
 )
 START_DATE_SELECTOR = "xpath:/html/body/div[1]/div/form/div[8]/div[2]/div[1]/div[3]/div/table/tbody/tr/td[1]/span/input[1]"
 END_DATE_SELECTOR = "xpath:/html/body/div[1]/div/form/div[8]/div[2]/div[1]/div[4]/div/table/tbody/tr/td[1]/span/input[1]"
