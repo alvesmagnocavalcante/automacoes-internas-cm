@@ -138,7 +138,9 @@ def identify_rede_company(path: Path) -> Company | None:
     return None if company == "CENTRAL" else company
 
 
-def find_rede_reports(directory: Path, report_date: date) -> dict[str, Path]:
+def find_rede_reports(
+    directory: Path, report_date: date, *, require_all: bool = True
+) -> dict[str, Path]:
     """Confere todos os arquivos do dia antes de iniciar os RPAs."""
     if not directory.is_dir():
         raise FileNotFoundError(f"Pasta da Rede não encontrada: {directory}")
@@ -158,10 +160,15 @@ def find_rede_reports(directory: Path, report_date: date) -> dict[str, Path]:
             )
         reports[company.code] = path
     missing = [company.code for company in COMPANIES if company.code not in reports]
-    if missing:
+    if missing and require_all:
         raise FileNotFoundError(
             f"Relatórios Rede de {report_date:%d/%m/%Y} ausentes em {directory}: "
             + ", ".join(missing)
+        )
+    if not reports:
+        raise FileNotFoundError(
+            f"Nenhum relatório Rede de hotel em {report_date:%d/%m/%Y} "
+            f"encontrado em {directory}."
         )
     return reports
 

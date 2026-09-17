@@ -131,6 +131,17 @@ class DailyFilesTests(TestCase):
             self._write_rede(root / "Rede Magna 14.09.xlsx", "MAGNA PRAIA")
             with self.assertRaisesRegex(FileNotFoundError, "CHARME, CUMBUCO, ICARAIZINHO, TAIBA"):
                 find_rede_reports(root, date(2026, 9, 14))
+            reports = find_rede_reports(root, date(2026, 9, 14), require_all=False)
+            self.assertEqual(set(reports), {"MAGNA"})
+
+    def test_partial_preflight_does_not_accept_only_central_services(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_rede(
+                root / "Rede_14_09_2026-central.xlsx", "CM CENTRAL SERVIÇOS"
+            )
+            with self.assertRaisesRegex(FileNotFoundError, "Nenhum relatório Rede de hotel"):
+                find_rede_reports(root, date(2026, 9, 14), require_all=False)
 
     def test_finds_downloaded_reports(self):
         with TemporaryDirectory() as directory:

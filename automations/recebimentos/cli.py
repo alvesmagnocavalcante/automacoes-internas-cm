@@ -69,6 +69,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Confere sequencialmente CHARME, CUMBUCO, ICARAIZINHO, TAIBA e MAGNA.",
     )
     parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Com --all-companies, confere apenas empresas com planilha Rede disponível.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path("output/conferencia_recebimentos.json"),
@@ -119,8 +124,16 @@ def _run_all_companies(args: argparse.Namespace) -> int:
         raise ValueError("Informe --rede-dir ou RECEBIMENTOS_REDE_DIR.")
 
     report_date = previous_report_date(date.today())
-    rede_reports = find_rede_reports(args.rede_dir, report_date)
-    hotels = {company.code: company.opera_hotel for company in COMPANIES}
+    rede_reports = find_rede_reports(
+        args.rede_dir, report_date, require_all=not args.allow_partial
+    )
+    companies = [company for company in COMPANIES if company.code in rede_reports]
+    if args.allow_partial:
+        LOGGER.warning(
+            "Teste parcial: conferindo somente %s; demais empresas não serão processadas.",
+            ", ".join(company.code for company in companies),
+        )
+    hotels = {company.code: company.opera_hotel for company in companies}
     missing = [code for code, hotel in hotels.items() if not hotel]
     if missing:
         raise ValueError(
@@ -129,10 +142,10 @@ def _run_all_companies(args: argparse.Namespace) -> int:
         )
     opera_config = config_from_env()
     opera_config.validate()
-    cmflex_config_from_env(COMPANIES[0].cmflex_name).validate()
+    cmflex_config_from_env(companies[0].cmflex_name).validate()
 
     has_divergence = False
-    for company in COMPANIES:
+    for company in companies:
         LOGGER.info("Iniciando conferência de recebimentos: %s", company.code)
         download_dir = args.download_dir / company.code.lower()
         try:
@@ -175,6 +188,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
     try:
+        if args.allow_partial and not args.all_companies:
+            raise ValueError("--allow-partial exige --all-companies.")
         if args.all_companies:
             return _run_all_companies(args)
         if args.baixar_opera:

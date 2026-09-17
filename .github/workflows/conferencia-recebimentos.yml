@@ -2,6 +2,12 @@ name: Conferência de recebimentos
 
 on:
   workflow_dispatch:
+    inputs:
+      allow_partial:
+        description: "Teste: conferir apenas empresas com planilha Rede disponível"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -65,7 +71,7 @@ jobs:
           }
 
       - name: Conferir e arquivar relatórios
-        run: uv run python main.py conferencia-recebimentos --all-companies
+        run: uv run python main.py conferencia-recebimentos --all-companies ${{ inputs.allow_partial && '--allow-partial' || '' }}
 
       - name: Publicar relatório
         if: ${{ always() }}

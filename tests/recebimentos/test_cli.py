@@ -7,6 +7,52 @@ from automations.recebimentos import cli
 
 
 class RecebimentosCliTests(TestCase):
+    def test_partial_mode_runs_only_companies_with_rede_files(self):
+        reports = {
+            "CHARME": Path("entrada/rede-charme.xlsx"),
+            "MAGNA": Path("entrada/rede-magna.xlsx"),
+        }
+        config = SimpleNamespace(validate=lambda: None)
+        result = SimpleNamespace(matched_count=1, divergent_count=0)
+        with (
+            patch.object(cli, "load_environment"),
+            patch.dict(
+                "os.environ",
+                {
+                    "RECEBIMENTOS_OPERA_HOTEL_CHARME": "CHARME",
+                    "RECEBIMENTOS_OPERA_HOTEL_MAGNA": "MAGNA",
+                },
+                clear=True,
+            ),
+            patch.object(cli, "find_rede_reports", return_value=reports) as find_rede,
+            patch.object(cli, "config_from_env", return_value=config),
+            patch.object(
+                cli,
+                "cmflex_config_from_env",
+                side_effect=lambda company: SimpleNamespace(
+                    company=company, validate=lambda: None
+                ),
+            ),
+            patch.object(cli, "find_downloaded_report", side_effect=FileNotFoundError),
+            patch.object(
+                cli, "run_opera_download", side_effect=lambda _, hotel, directory: directory / "opera.xml"
+            ) as opera_download,
+            patch.object(
+                cli, "run_cmflex_download", side_effect=lambda _, directory: directory / "cmflex.xlsx"
+            ) as cmflex_download,
+            patch.object(cli, "run", return_value=result),
+            patch.object(
+                cli, "save_conference_workbooks", return_value=(Path("arquivo"), {})
+            ) as archive,
+        ):
+            code = cli.main(["--all-companies", "--allow-partial", "--rede-dir", "entrada"])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(find_rede.call_args.kwargs, {"require_all": False})
+        self.assertEqual(opera_download.call_count, 2)
+        self.assertEqual(cmflex_download.call_count, 2)
+        self.assertEqual(archive.call_count, 2)
+
     def test_all_companies_runs_sequentially_with_isolated_files(self):
         from automations.recebimentos.companies import COMPANIES
 

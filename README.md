@@ -221,6 +221,10 @@ conter `Rede` e a data (`DD.MM`, `DD-MM`, `DD_MM` ou `AAAA-MM-DD`). Se também
 contiver uma empresa, ela deve coincidir com o conteúdo. Arquivos sem
 identificação, com empresas misturadas, duplicados ou ausentes interrompem a
 execução antes dos downloads. A empresa CM CENTRAL SERVIÇOS é ignorada.
+Para testes com apenas parte das planilhas, marque `allow_partial` em
+**Run workflow** (ou use `--all-companies --allow-partial` localmente). Sem
+essa opção, a execução exige as cinco empresas para evitar conferências
+diárias incompletas.
 Os três relatórios Excel de cada empresa são arquivados em
 `RECEBIMENTOS_ARCHIVE_ROOT/MM - MÊS/DD/EMPRESA/`; downloads ficam separados
 em `output/recebimentos/empresa/`. O modo antigo `--conferir-baixados`
