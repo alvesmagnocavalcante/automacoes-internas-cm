@@ -75,15 +75,16 @@ class DailyFilesTests(TestCase):
         examples = {
             "CARMEL CHARME": "CHARME",
             "CARMEL CUMBUCO": "CUMBUCO",
+            "CARMEL WIND": "CUMBUCO",
             "CARMEL ICARAIZINHO": "ICARAIZINHO",
             "CARMEL TAÍBA": "TAIBA",
             "MAGNA PRAIA": "MAGNA",
         }
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            for establishment, company in examples.items():
+            for index, (establishment, company) in enumerate(examples.items()):
                 with self.subTest(establishment=establishment):
-                    path = root / f"Rede_Rel_Vendas_14_09_2026-{company}.xlsx"
+                    path = root / f"Rede_Rel_Vendas_14_09_2026-{index}.xlsx"
                     self._write_rede(path, establishment)
                     self.assertEqual(identify_rede_company(path).code, company)
             central = root / "Rede_Rel_Vendas_14_09_2026-CENTRAL.xlsx"
@@ -124,6 +125,14 @@ class DailyFilesTests(TestCase):
             self._write_rede(root / "Rede Magna Praia 14.09.xlsx", "MAGNA PRAIA")
             with self.assertRaisesRegex(RuntimeError, "Mais de um relatório Rede de MAGNA"):
                 find_rede_reports(root, date(2026, 9, 14))
+
+    def test_wind_and_cumbuco_reports_for_same_day_are_duplicates(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_rede(root / "Rede_14_09_2026-1.xlsx", "CARMEL WIND")
+            self._write_rede(root / "Rede_14_09_2026-2.xlsx", "CARMEL CUMBUCO")
+            with self.assertRaisesRegex(RuntimeError, "Mais de um relatório Rede de CUMBUCO"):
+                find_rede_reports(root, date(2026, 9, 14), require_all=False)
 
     def test_preflight_requires_every_company_report(self):
         with TemporaryDirectory() as directory:

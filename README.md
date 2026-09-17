@@ -89,7 +89,8 @@ Para baixar o relatório de Lançamentos de Documentos do CMFlex:
 uv run python main.py conferencia-recebimentos --baixar-cmflex
 ```
 
-A empresa padrão é `MAGNA` e pode ser alterada com `--empresa-cmflex` ou
+A empresa padrão nesse comando isolado é `MAGNA`; use `--empresa-cmflex` para
+selecionar outra.
 `RECEBIMENTOS_CMFLEX_COMPANY`. Para executar somente a conferência com os três
 arquivos já baixados:
 
@@ -124,12 +125,8 @@ manualmente. O XML baixado do OPERA é convertido para Excel nessa etapa.
 ## GitHub Actions e runner local
 
 Os workflows ficam em `.github/workflows/booking-opera.yml` e
-`.github/workflows/conferencia-recebimentos.yml`. Ambos usam exclusivamente um
-runner com os rótulos:
-
-```text
-self-hosted, windows, x64
-```
+`.github/workflows/conferencia-recebimentos.yml`. O primeiro usa um runner
+`self-hosted`; o segundo exige os rótulos `self-hosted`, `windows` e `x64`.
 
 ### Configuração do runner
 
@@ -149,16 +146,24 @@ de certificados do Windows, inclusive em redes com certificado corporativo.
 
 ## Configuração da Booking × OPERA
 
-Cadastre os seguintes secrets em
-**Settings → Secrets and variables → Actions**:
+Em **Settings → Secrets and variables → Actions → Repository secrets**, configure:
 
-| Secret | Finalidade |
+| Secret | Necessidade na execução `--all-companies` |
 | --- | --- |
-| `BOOKING_USERNAME` | Usuário Booking da Magna (configuração existente). |
-| `BOOKING_PASSWORD` | Senha Booking da Magna (configuração existente). |
-| `OPERA_USERNAME` | Usuário de acesso ao OPERA. |
-| `OPERA_PASSWORD` | Senha de acesso ao OPERA. |
-| `OPERA_HOTEL` | Hotel da Magna no OPERA (configuração existente). |
+| `BOOKING_USERNAME` | Usuário Booking da MAGNA; use junto de `BOOKING_PASSWORD`. Alternativa: o par `BOOKING_MAGNA_USERNAME`/`BOOKING_MAGNA_PASSWORD`. |
+| `BOOKING_PASSWORD` | Senha Booking da MAGNA; use junto de `BOOKING_USERNAME`. |
+| `BOOKING_MAGNA_USERNAME` | Opcional: substitui `BOOKING_USERNAME` se o par MAGNA específico estiver completo. |
+| `BOOKING_MAGNA_PASSWORD` | Opcional: substitui `BOOKING_PASSWORD` se o par MAGNA específico estiver completo. |
+| `BOOKING_CHARME_USERNAME` | Usuário Booking da CHARME; obrigatório. |
+| `BOOKING_CHARME_PASSWORD` | Senha Booking da CHARME; obrigatória. |
+| `BOOKING_WIND_USERNAME` | Usuário Booking da WIND; obrigatório. |
+| `BOOKING_WIND_PASSWORD` | Senha Booking da WIND; obrigatória. |
+| `OPERA_USERNAME` | Usuário OPERA compartilhado entre as empresas deste workflow; obrigatório. |
+| `OPERA_PASSWORD` | Senha OPERA compartilhada; obrigatória. |
+| `OPERA_HOTEL` | Localização MAGNA no OPERA; use esta ou `OPERA_HOTEL_MAGNA`. |
+| `OPERA_HOTEL_MAGNA` | Opcional: substitui `OPERA_HOTEL` para MAGNA. |
+| `OPERA_HOTEL_CHARME` | Localização CHARME no OPERA; obrigatória. |
+| `OPERA_HOTEL_WIND` | Localização WIND no OPERA; obrigatória. |
 
 A execução manual está disponível em
 **Actions → Conciliação Booking x OPERA → Run workflow**.
@@ -170,12 +175,6 @@ empresas ao mesmo tempo. Antes de abrir o navegador, valida as credenciais e o
 hotel OPERA das três; se uma conferência falhar, as seguintes não começam.
 O mesmo usuário e senha `OPERA_USERNAME`/`OPERA_PASSWORD` são usados em todas.
 
-| Empresa | Secrets de acesso Booking | Configuração do hotel no OPERA |
-| --- | --- | --- |
-| Magna | `BOOKING_USERNAME` e `BOOKING_PASSWORD` existentes, ou o par `BOOKING_MAGNA_USERNAME`/`BOOKING_MAGNA_PASSWORD` | `OPERA_HOTEL` existente, ou `OPERA_HOTEL_MAGNA` |
-| Charme | `BOOKING_CHARME_USERNAME` e `BOOKING_CHARME_PASSWORD` | `OPERA_HOTEL_CHARME` |
-| Wind | `BOOKING_WIND_USERNAME` e `BOOKING_WIND_PASSWORD` | `OPERA_HOTEL_WIND` |
-
 Cadastre os nomes dos hotéis como **Secrets** do repositório, assim como o
 `OPERA_HOTEL` já existente. Acarizinho está previsto por
 `BOOKING_ACARIZINHO_USERNAME`, `BOOKING_ACARIZINHO_PASSWORD` e
@@ -185,28 +184,50 @@ credenciais estejam disponíveis. Para conferir uma única empresa, use
 `--all-companies`, o comando local mantém o comportamento anterior.
 
 Para salvar também o Excel final em uma pasta escolhida por você, cadastre a
-Variable `BOOKING_ARCHIVE_DIR` em **Settings → Secrets and variables → Actions**
+**Repository Variable** `BOOKING_ARCHIVE_DIR` em
+**Settings → Secrets and variables → Actions → Variables**
 com o caminho dessa pasta. O caminho deve ser acessível pelo runner que executa
 o workflow (no webtop, use um caminho Linux ou um volume montado). Na execução
 conjunta, cada empresa recebe sua própria subpasta nessa raiz. A cópia recebe
 data e hora no nome para preservar execuções anteriores; os arquivos em
 `output/<empresa>/` e o artefato do Actions permanecem disponíveis. Sem a
-Variable, não há cópia adicional. Localmente, também é possível usar
+Variable, não há cópia adicional. Um **Secret** chamado `BOOKING_ARCHIVE_DIR`
+não é lido pelo workflow atual. Localmente, também é possível usar
 `--archive-dir`.
+
+### Arquivos gerados
+
+Na execução conjunta, cada empresa recebe sua subpasta em `output/` com
+`reservas_booking.csv`, `conferencia_booking_opera.csv` e
+`conferencia_booking_opera.xlsx`. O Excel contém valores Booking e OPERA,
+diferença, status e observações. Ao final, `output/` é publicado no artefato
+`booking-opera-<número-da-execução>`.
 
 ## Configuração da conferência de recebimentos
 
-Cadastre secrets exclusivos para esta automação:
+Em **Repository secrets**, configure os nomes abaixo. Esta automação usa nomes
+próprios; não recebe automaticamente os secrets `OPERA_*` do workflow Booking.
 
-| Secret | Finalidade |
+| Secret | Necessidade na execução `--all-companies` |
 | --- | --- |
-| `RECEBIMENTOS_OPERA_USERNAME` | Usuário do OPERA. |
-| `RECEBIMENTOS_OPERA_PASSWORD` | Senha do OPERA. |
-| `RECEBIMENTOS_OPERA_HOTEL_CHARME`, `_CUMBUCO`, `_ICARAIZINHO`, `_TAIBA`, `_MAGNA` | Localização exata de cada empresa no OPERA. Para MAGNA, `RECEBIMENTOS_OPERA_HOTEL` continua válido. |
-| `RECEBIMENTOS_CMFLEX_USERNAME` | Usuário do CMFlex. |
-| `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha do CMFlex. |
-| `RECEBIMENTOS_REDE_DIR` | Pasta onde o setor disponibiliza a planilha Rede. |
-| `RECEBIMENTOS_ARCHIVE_ROOT` | Raiz das pastas mensais e diárias; opcional, padrão `output/recebimentos/conferencias`. |
+| `RECEBIMENTOS_OPERA_USERNAME` | Usuário OPERA; obrigatório e usado para todas as empresas. |
+| `RECEBIMENTOS_OPERA_PASSWORD` | Senha OPERA; obrigatória e usada para todas as empresas. |
+| `RECEBIMENTOS_CMFLEX_USERNAME` | Usuário CMFlex; obrigatório e usado para todas as empresas. |
+| `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha CMFlex; obrigatória e usada para todas as empresas. |
+| `RECEBIMENTOS_OPERA_HOTEL_CHARME` | Localização CHARME no OPERA; obrigatória quando CHARME é conferida. |
+| `RECEBIMENTOS_OPERA_HOTEL_CUMBUCO` | Localização CUMBUCO no OPERA; obrigatória quando CUMBUCO é conferida. |
+| `RECEBIMENTOS_OPERA_HOTEL_ICARAIZINHO` | Localização ICARAIZINHO no OPERA; obrigatória quando ICARAIZINHO é conferida. |
+| `RECEBIMENTOS_OPERA_HOTEL_TAIBA` | Localização TAIBA no OPERA; obrigatória quando TAIBA é conferida. |
+| `RECEBIMENTOS_OPERA_HOTEL_MAGNA` | Localização MAGNA no OPERA; use esta ou `RECEBIMENTOS_OPERA_HOTEL`. |
+| `RECEBIMENTOS_OPERA_HOTEL` | Localização MAGNA existente; usada se `RECEBIMENTOS_OPERA_HOTEL_MAGNA` estiver vazia. |
+| `RECEBIMENTOS_REDE_DIR` | Pasta dos Excel da Rede acessível pelo runner; obrigatória. |
+| `RECEBIMENTOS_ARCHIVE_ROOT` | Pasta de destino das conferências; opcional, padrão `output/recebimentos/conferencias`. |
+
+Os cinco nomes de localização podem ser cadastrados como **Repository
+Variables**, em vez de Secrets, com os mesmos nomes: o workflow tenta primeiro
+o Secret e depois a Variable. Usuários e senhas devem permanecer em Secrets.
+Na execução parcial (`allow_partial`), só são exigidas as localizações das
+empresas cujos arquivos da Rede estão presentes.
 
 A execução manual está em
 **Actions → Conferência de recebimentos → Run workflow**. O workflow usa os
@@ -214,6 +235,8 @@ Secrets `RECEBIMENTOS_*` para credenciais e caminhos, sem recorrer às
 credenciais da automação Booking × OPERA. Executa sequencialmente CHARME,
 CUMBUCO, ICARAIZINHO, TAIBA e MAGNA; CM CENTRAL SERVIÇOS é ignorada. No
 CMFlex, seleciona as empresas pelos nomes completos apresentados na lista.
+O estabelecimento `CARMEL WIND` na Rede é identificado como CUMBUCO e
+seleciona `CARMEL CUMBUCO` no CMFlex; não cria uma sexta conferência.
 A pasta da Rede deve conter um Excel por empresa e data. O nome pode ser o
 original da Rede, como `Rede_Rel_Vendas_16_09_2026-<id>.xlsx`: o sistema lê a
 coluna `nome do estabelecimento` para identificar a empresa. O nome precisa
@@ -236,20 +259,15 @@ O workflow publica os arquivos sob `output/recebimentos` no artefato
 `conferencia-recebimentos-<número-da-execução>`. Se a raiz de arquivo for
 externa, as conferências finais permanecem nessa raiz, acessível ao runner.
 
-### Arquivos gerados
+### O que não cadastrar no GitHub
 
-Na execução conjunta, os relatórios são gravados em `output/magna/`,
-`output/charme/` e `output/wind/`. Em cada subpasta são gerados:
-
-- `reservas_booking.csv`;
-- `conferencia_booking_opera.csv`;
-- `conferencia_booking_opera.xlsx`.
-
-O relatório final inclui os valores da Booking, a comissão cobrada, o valor do
-OPERA, a diferença, o status e as observações da conciliação.
-
-Ao final do workflow, o diretório é publicado no artefato
-`booking-opera-<número-da-execução>`.
+`BOOKING_OUTPUT_DIR`, `BOOKING_HEADLESS`, `RECEBIMENTOS_HEADLESS`, `CI`,
+`PYTHONUTF8` e `UV_SYSTEM_CERTS` já são definidos pelos workflows. A opção
+`allow_partial` é um campo do botão **Run workflow**, não um Secret/Variable.
+`RECEBIMENTOS_CMFLEX_COMPANY` é usado apenas no modo isolado/local; na
+execução conjunta, o programa escolhe a empresa CMFlex automaticamente.
+Outros ajustes locais, como URLs dos sistemas, estão em `.env.example` e não
+são repassados pelos workflows atuais.
 
 ### Códigos de saída
 

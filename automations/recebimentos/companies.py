@@ -22,7 +22,7 @@ class Company:
 
 COMPANIES = (
     Company("CHARME", "CARMEL CHARME HOSPEDAGEM", ("charme",)),
-    Company("CUMBUCO", "CARMEL CUMBUCO", ("cumbuco",)),
+    Company("CUMBUCO", "CARMEL CUMBUCO", ("cumbuco", "wind")),
     Company("ICARAIZINHO", "CARMEL ICARAIZINHO", ("icaraizinho", "acarizinho")),
     Company("TAIBA", "CARMEL TAÍBA", ("taiba",)),
     Company("MAGNA", "MAGNA PRAIA", ("magna",)),
