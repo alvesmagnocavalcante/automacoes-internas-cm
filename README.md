@@ -214,10 +214,12 @@ Secrets `RECEBIMENTOS_*` para credenciais e caminhos, sem recorrer às
 credenciais da automação Booking × OPERA. Executa sequencialmente CHARME,
 CUMBUCO, ICARAIZINHO, TAIBA e MAGNA; CM CENTRAL SERVIÇOS é ignorada. No
 CMFlex, seleciona as empresas pelos nomes completos apresentados na lista.
-A pasta da Rede deve conter um Excel por empresa e data, por exemplo
-`Rede Carmel Charme 16.09.xlsx` e `Rede Magna 16.09.xlsx`. O nome deve conter
-`Rede`, a data (`DD.MM`, `DD-MM`, `DD_MM` ou `AAAA-MM-DD`) e o nome da empresa.
-Arquivos sem identificação, ambíguos, duplicados ou ausentes interrompem a
+A pasta da Rede deve conter um Excel por empresa e data. O nome pode ser o
+original da Rede, como `Rede_Rel_Vendas_16_09_2026-<id>.xlsx`: o sistema lê a
+coluna `nome do estabelecimento` para identificar a empresa. O nome precisa
+conter `Rede` e a data (`DD.MM`, `DD-MM`, `DD_MM` ou `AAAA-MM-DD`). Se também
+contiver uma empresa, ela deve coincidir com o conteúdo. Arquivos sem
+identificação, com empresas misturadas, duplicados ou ausentes interrompem a
 execução antes dos downloads. A empresa CM CENTRAL SERVIÇOS é ignorada.
 Os três relatórios Excel de cada empresa são arquivados em
 `RECEBIMENTOS_ARCHIVE_ROOT/MM - MÊS/DD/EMPRESA/`; downloads ficam separados

@@ -3,6 +3,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
+from openpyxl import Workbook
+
 from automations.recebimentos.daily_files import (
     daily_directory,
     find_downloaded_report,
@@ -14,6 +16,16 @@ from automations.recebimentos.daily_files import (
 
 
 class DailyFilesTests(TestCase):
+    @staticmethod
+    def _write_rede(path: Path, *establishments: str) -> None:
+        book = Workbook()
+        sheet = book.active
+        sheet.append(["nome do estabelecimento"])
+        for establishment in establishments:
+            sheet.append([establishment])
+        book.save(path)
+        book.close()
+
     def test_uses_previous_day_across_month_boundary(self):
         self.assertEqual(previous_report_date(date(2026, 9, 1)), date(2026, 8, 31))
 
@@ -61,47 +73,62 @@ class DailyFilesTests(TestCase):
 
     def test_identifies_each_company_and_ignores_central_services(self):
         examples = {
-            "Rede Carmel Charme Hospedagem 14.09.xlsx": "CHARME",
-            "Rede Carmel Cumbuco 14.09.xlsx": "CUMBUCO",
-            "Rede Carmel Icaraizinho 14.09.xlsx": "ICARAIZINHO",
-            "Rede Carmel Taíba 14.09.xlsx": "TAIBA",
-            "Rede Magna Praia 14.09.xlsx": "MAGNA",
+            "CARMEL CHARME": "CHARME",
+            "CARMEL CUMBUCO": "CUMBUCO",
+            "CARMEL ICARAIZINHO": "ICARAIZINHO",
+            "CARMEL TAÍBA": "TAIBA",
+            "MAGNA PRAIA": "MAGNA",
         }
-        for filename, company in examples.items():
-            with self.subTest(filename=filename):
-                self.assertEqual(identify_rede_company(Path(filename)).code, company)
-        self.assertIsNone(
-            identify_rede_company(Path("Rede CM Central de Serviços 14.09.xlsx"))
-        )
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for establishment, company in examples.items():
+                with self.subTest(establishment=establishment):
+                    path = root / f"Rede_Rel_Vendas_14_09_2026-{company}.xlsx"
+                    self._write_rede(path, establishment)
+                    self.assertEqual(identify_rede_company(path).code, company)
+            central = root / "Rede_Rel_Vendas_14_09_2026-CENTRAL.xlsx"
+            self._write_rede(central, "CM CENTRAL SERVIÇOS")
+            self.assertIsNone(identify_rede_company(central))
 
     def test_rejects_ambiguous_or_unidentified_rede_file(self):
-        for filename in ("Rede 14.09.xlsx", "Rede Magna Charme 14.09.xlsx"):
-            with self.subTest(filename=filename):
-                with self.assertRaisesRegex(ValueError, "ausente ou ambígua"):
-                    identify_rede_company(Path(filename))
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            mixed = root / "Rede_14_09_2026.xlsx"
+            self._write_rede(mixed, "CARMEL CHARME", "MAGNA PRAIA")
+            with self.assertRaisesRegex(ValueError, "empresas diferentes"):
+                identify_rede_company(mixed)
+            mismatched = root / "Rede Magna 14.09.xlsx"
+            self._write_rede(mismatched, "CARMEL CHARME")
+            with self.assertRaisesRegex(ValueError, "divergem"):
+                identify_rede_company(mismatched)
+            unknown = root / "Rede_14_09_2026-uuid.xlsx"
+            self._write_rede(unknown, "HOTEL DESCONHECIDO")
+            with self.assertRaisesRegex(ValueError, "desconhecido"):
+                identify_rede_company(unknown)
 
     def test_preflights_all_rede_reports_and_detects_duplicates(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            for name in (
-                "Rede Charme 14.09.xlsx",
-                "Rede Cumbuco 14.09.xlsx",
-                "Rede Icaraizinho 14.09.xlsx",
-                "Rede Taíba 14.09.xlsx",
-                "Rede Magna 14.09.xlsx",
-                "Rede CM Central Serviços 14.09.xlsx",
+            for index, company in enumerate(
+                ("CHARME", "CUMBUCO", "ICARAIZINHO", "TAIBA", "MAGNA")
             ):
-                (root / name).touch()
+                self._write_rede(
+                    root / f"Rede_Rel_Vendas_14_09_2026-{index}.xlsx", company
+                )
+            self._write_rede(
+                root / "Rede_Rel_Vendas_14_09_2026-5.xlsx",
+                "CM CENTRAL SERVIÇOS",
+            )
             reports = find_rede_reports(root, date(2026, 9, 14))
             self.assertEqual(set(reports), {"CHARME", "CUMBUCO", "ICARAIZINHO", "TAIBA", "MAGNA"})
-            (root / "Rede Magna Praia 14.09.xlsx").touch()
+            self._write_rede(root / "Rede Magna Praia 14.09.xlsx", "MAGNA PRAIA")
             with self.assertRaisesRegex(RuntimeError, "Mais de um relatório Rede de MAGNA"):
                 find_rede_reports(root, date(2026, 9, 14))
 
     def test_preflight_requires_every_company_report(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "Rede Magna 14.09.xlsx").touch()
+            self._write_rede(root / "Rede Magna 14.09.xlsx", "MAGNA PRAIA")
             with self.assertRaisesRegex(FileNotFoundError, "CHARME, CUMBUCO, ICARAIZINHO, TAIBA"):
                 find_rede_reports(root, date(2026, 9, 14))
 

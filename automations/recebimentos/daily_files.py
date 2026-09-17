@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import re
-import unicodedata
+import warnings
 from datetime import date, timedelta
+from itertools import islice
 from pathlib import Path
 
+from openpyxl import load_workbook
+
 from automations.recebimentos.companies import COMPANIES, Company
+from automations.recebimentos.normalization import normalize
 from automations.recebimentos.parsers import opera_xml_has_transactions
 
 MONTH_NAMES = (
@@ -62,26 +66,76 @@ def find_rede_report(directory: Path, report_date: date) -> Path:
     return matches[0]
 
 
-def identify_rede_company(path: Path) -> Company | None:
-    """Identifica a empresa pelo nome; rejeita nomes ambíguos ou sem empresa."""
-    normalized = unicodedata.normalize("NFKD", path.stem)
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    words = set(re.findall(r"[a-z]+", normalized.casefold()))
+def _company_from_text(value: object, path: Path) -> Company | str | None:
+    words = set(re.findall(r"[a-z]+", normalize(value)))
     matches = [
-        company
-        for company in COMPANIES
+        company for company in COMPANIES
         if any(alias in words for alias in company.rede_names)
     ]
-    if {"central", "servicos"} <= words or {"cm", "central"} <= words:
-        if matches:
-            raise ValueError(f"Arquivo Rede mistura CM CENTRAL e hotel: {path.name!r}.")
-        return None
-    if len(matches) != 1:
+    central = {"central", "servicos"} <= words or {"cm", "central"} <= words
+    if len(matches) > 1 or (central and matches):
+        raise ValueError(f"Empresa da Rede ambígua em {path.name!r}: {value!r}.")
+    if central:
+        return "CENTRAL"
+    return matches[0] if matches else None
+
+
+def _company_from_worksheet(path: Path) -> Company | str | None:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Workbook contains no default style")
+        workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        rows = workbook.active.iter_rows(values_only=True)
+        company_column = None
+        for row in islice(rows, 20):
+            if "nome do estabelecimento" in (normalize(value) for value in row):
+                company_column = next(
+                    index for index, value in enumerate(row)
+                    if normalize(value) == "nome do estabelecimento"
+                )
+                break
+        if company_column is None:
+            return None
+        companies: set[Company | str] = set()
+        for row in rows:
+            value = row[company_column] if company_column < len(row) else None
+            if not normalize(value):
+                continue
+            company = _company_from_text(value, path)
+            if company is None:
+                raise ValueError(
+                    f"Estabelecimento da Rede desconhecido em {path.name!r}: {value!r}."
+                )
+            companies.add(company)
+            if len(companies) > 1:
+                raise ValueError(
+                    f"Arquivo Rede contém empresas diferentes: {path.name!r}."
+                )
+        if not companies:
+            raise ValueError(
+                f"Coluna 'nome do estabelecimento' sem empresa em {path.name!r}."
+            )
+        return companies.pop()
+    finally:
+        workbook.close()
+
+
+def identify_rede_company(path: Path) -> Company | None:
+    """Identifica pela coluna do Excel e valida o nome quando ele indica hotel."""
+    filename_company = _company_from_text(path.stem, path)
+    worksheet_company = _company_from_worksheet(path)
+    if worksheet_company is not None and filename_company is not None:
+        if worksheet_company != filename_company:
+            raise ValueError(
+                f"Empresa no nome e na planilha da Rede divergem: {path.name!r}."
+            )
+    company = worksheet_company or filename_company
+    if company is None:
         raise ValueError(
-            f"Empresa da Rede ausente ou ambígua no arquivo {path.name!r}; "
-            "use CHARME, CUMBUCO, ICARAIZINHO, TAIBA ou MAGNA no nome."
+            f"Empresa da Rede não identificada em {path.name!r}; informe "
+            "'nome do estabelecimento' na planilha ou a empresa no nome do arquivo."
         )
-    return matches[0]
+    return None if company == "CENTRAL" else company
 
 
 def find_rede_reports(directory: Path, report_date: date) -> dict[str, Path]:
