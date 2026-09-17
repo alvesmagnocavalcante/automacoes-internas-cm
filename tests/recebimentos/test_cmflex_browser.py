@@ -85,8 +85,13 @@ class FakeMission:
 
 class CMFlexBrowserTests(TestCase):
     def test_report_navigation_targets_labels_instead_of_row_numbers(self):
+        self.assertIn("Contas a Receber", ACCOUNTS_RECEIVABLE_SELECTOR)
+        self.assertIn("Consultas", QUERIES_SELECTOR)
+        self.assertIn("Visualizar Relatórios", REPORTS_SELECTOR)
         self.assertIn("Grupo: Operacionais", OPERATIONAL_GROUPS_SELECTOR)
         self.assertIn("Lançamento de Documentos", DOCUMENT_ENTRIES_SELECTOR)
+        self.assertNotIn("/div[8]", ACCOUNTS_RECEIVABLE_SELECTOR)
+        self.assertNotIn("/div[4]", QUERIES_SELECTOR)
         self.assertNotIn("/tr[24]", OPERATIONAL_GROUPS_SELECTOR)
         self.assertNotIn("/tr[37]", DOCUMENT_ENTRIES_SELECTOR)
 

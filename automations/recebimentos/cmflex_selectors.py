@@ -18,10 +18,10 @@ COMPANY_LOGIN_SELECTOR = (
     "xpath:/html/body/div/section/div/div[1]/div[2]/div/form/div/fieldset/p/input[2]"
 )
 ACCOUNTS_RECEIVABLE_SELECTOR = (
-    "xpath:/html/body/div/section/div/div/div/div[3]/div/div[1]/div[8]"
+    'xpath://*[normalize-space(text())="Contas a Receber"]'
 )
-QUERIES_SELECTOR = "xpath:/html/body/div[1]/div/form/header/div[2]/div[4]"
-REPORTS_SELECTOR = "xpath:/html/body/div[1]/div/form/header/div[1]/div[4]/div[2]/div/div/div[2]/div[4]/ul/li/a"
+QUERIES_SELECTOR = 'xpath://header//*[normalize-space(text())="Consultas"]'
+REPORTS_SELECTOR = 'xpath://header//a[normalize-space(.)="Visualizar Relatórios"]'
 OPERATIONAL_GROUPS_SELECTOR = (
     'xpath://tr[td[contains(normalize-space(.), "Grupo: Operacionais")]]/td[1]//input'
 )
