@@ -63,11 +63,14 @@ def save_conference_workbooks(
     root: Path,
     report_date: date,
     hotel: str,
+    company_code: str | None = None,
 ) -> tuple[Path, dict[str, Path]]:
     """Cria a pasta diária contendo somente OPERA, CMFlex e Rede em XLSX."""
     from automations.recebimentos.daily_files import daily_directory
 
     destination = daily_directory(root, report_date)
+    if company_code is not None:
+        destination /= company_code
     destination.parent.mkdir(parents=True, exist_ok=True)
     label = hotel.split(" - ", 1)[0].strip().title()
     names = {

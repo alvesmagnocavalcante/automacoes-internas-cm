@@ -11,10 +11,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  download-opera:
+  conferir-recebimentos:
     # O runner deve estar em uma sessão interativa para exibir o Chrome.
     runs-on: [self-hosted, windows, x64]
-    timeout-minutes: 30
+    timeout-minutes: 180
     env:
       CI: "true"
       PYTHONUTF8: "1"
@@ -23,9 +23,13 @@ jobs:
       RECEBIMENTOS_OPERA_USERNAME: ${{ secrets.RECEBIMENTOS_OPERA_USERNAME }}
       RECEBIMENTOS_OPERA_PASSWORD: ${{ secrets.RECEBIMENTOS_OPERA_PASSWORD }}
       RECEBIMENTOS_OPERA_HOTEL: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL }}
+      RECEBIMENTOS_OPERA_HOTEL_CHARME: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL_CHARME || vars.RECEBIMENTOS_OPERA_HOTEL_CHARME }}
+      RECEBIMENTOS_OPERA_HOTEL_CUMBUCO: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL_CUMBUCO || vars.RECEBIMENTOS_OPERA_HOTEL_CUMBUCO }}
+      RECEBIMENTOS_OPERA_HOTEL_ICARAIZINHO: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL_ICARAIZINHO || vars.RECEBIMENTOS_OPERA_HOTEL_ICARAIZINHO }}
+      RECEBIMENTOS_OPERA_HOTEL_TAIBA: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL_TAIBA || vars.RECEBIMENTOS_OPERA_HOTEL_TAIBA }}
+      RECEBIMENTOS_OPERA_HOTEL_MAGNA: ${{ secrets.RECEBIMENTOS_OPERA_HOTEL_MAGNA || vars.RECEBIMENTOS_OPERA_HOTEL_MAGNA }}
       RECEBIMENTOS_CMFLEX_USERNAME: ${{ secrets.RECEBIMENTOS_CMFLEX_USERNAME }}
       RECEBIMENTOS_CMFLEX_PASSWORD: ${{ secrets.RECEBIMENTOS_CMFLEX_PASSWORD }}
-      RECEBIMENTOS_CMFLEX_COMPANY: ${{ secrets.RECEBIMENTOS_CMFLEX_COMPANY || vars.RECEBIMENTOS_CMFLEX_COMPANY }}
       RECEBIMENTOS_REDE_DIR: ${{ secrets.RECEBIMENTOS_REDE_DIR }}
       RECEBIMENTOS_ARCHIVE_ROOT: ${{ secrets.RECEBIMENTOS_ARCHIVE_ROOT }}
 
@@ -49,9 +53,8 @@ jobs:
         shell: powershell
         run: |
           if ([string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_OPERA_USERNAME) -or
-              [string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_OPERA_PASSWORD) -or
-              [string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_OPERA_HOTEL)) {
-            throw "Configure os secrets RECEBIMENTOS_OPERA_USERNAME, RECEBIMENTOS_OPERA_PASSWORD e RECEBIMENTOS_OPERA_HOTEL no repositório."
+              [string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_OPERA_PASSWORD)) {
+            throw "Configure os secrets RECEBIMENTOS_OPERA_USERNAME e RECEBIMENTOS_OPERA_PASSWORD no repositório."
           }
           if ([string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_CMFLEX_USERNAME) -or
               [string]::IsNullOrWhiteSpace($env:RECEBIMENTOS_CMFLEX_PASSWORD)) {
@@ -61,22 +64,8 @@ jobs:
             throw "Configure o secret RECEBIMENTOS_REDE_DIR com a pasta da planilha Rede acessível ao runner."
           }
 
-      - name: Limpar relatório anterior
-        shell: powershell
-        run: |
-          $reportDir = Join-Path $env:GITHUB_WORKSPACE "output\recebimentos"
-          if (Test-Path -LiteralPath $reportDir) {
-            Remove-Item -LiteralPath $reportDir -Recurse -Force
-          }
-
-      - name: Baixar relatório do OPERA
-        run: uv run python main.py conferencia-recebimentos --baixar-opera
-
-      - name: Baixar relatório do CMFlex
-        run: uv run python main.py conferencia-recebimentos --baixar-cmflex
-
       - name: Conferir e arquivar relatórios
-        run: uv run python main.py conferencia-recebimentos --conferir-baixados
+        run: uv run python main.py conferencia-recebimentos --all-companies
 
       - name: Publicar relatório
         if: ${{ always() }}

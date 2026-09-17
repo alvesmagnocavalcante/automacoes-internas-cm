@@ -7,6 +7,57 @@ from automations.recebimentos import cli
 
 
 class RecebimentosCliTests(TestCase):
+    def test_all_companies_runs_sequentially_with_isolated_files(self):
+        from automations.recebimentos.companies import COMPANIES
+
+        report_date = cli.date(2026, 9, 14)
+        reports = {company.code: Path(f"entrada/rede {company.code}.xlsx") for company in COMPANIES}
+        env = {
+            f"RECEBIMENTOS_OPERA_HOTEL_{company.code}": company.code
+            for company in COMPANIES
+        }
+        config = SimpleNamespace(validate=lambda: None)
+        result = SimpleNamespace(matched_count=1, divergent_count=0)
+        events = []
+
+        def download_opera(_config, hotel, directory):
+            events.append(("opera", hotel))
+            return directory / "opera.xml"
+
+        def download_cmflex(company_config, directory):
+            events.append(("cmflex", company_config.company))
+            return directory / "cmflex.xlsx"
+
+        def reconcile(opera, cmflex, rede, output):
+            events.append(("reconcile", rede.name))
+            self.assertEqual(opera.parent, cmflex.parent)
+            self.assertIsNone(output)
+            return result
+
+        with (
+            patch.object(cli, "load_environment"),
+            patch.dict("os.environ", env, clear=True),
+            patch.object(cli, "previous_report_date", return_value=report_date),
+            patch.object(cli, "find_rede_reports", return_value=reports),
+            patch.object(cli, "config_from_env", return_value=config),
+            patch.object(cli, "cmflex_config_from_env", side_effect=lambda company: SimpleNamespace(company=company, validate=lambda: None)),
+            patch.object(cli, "find_downloaded_report", side_effect=FileNotFoundError),
+            patch.object(cli, "run_opera_download", side_effect=download_opera),
+            patch.object(cli, "run_cmflex_download", side_effect=download_cmflex),
+            patch.object(cli, "run", side_effect=reconcile),
+            patch.object(cli, "save_conference_workbooks", side_effect=lambda *args: (Path("arquivo") / args[-1], {})) as archive,
+        ):
+            code = cli.main(["--all-companies", "--rede-dir", "entrada"])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(archive.call_count, 5)
+        for company in COMPANIES:
+            self.assertEqual(
+                events[COMPANIES.index(company) * 3:COMPANIES.index(company) * 3 + 3],
+                [("opera", company.code), ("cmflex", company.cmflex_name),
+                 ("reconcile", reports[company.code].name)],
+            )
+
     def test_uses_existing_opera_hotel_from_environment(self):
         with (
             patch.object(cli, "load_environment"),

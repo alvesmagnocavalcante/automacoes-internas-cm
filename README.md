@@ -202,7 +202,7 @@ Cadastre secrets exclusivos para esta automação:
 | --- | --- |
 | `RECEBIMENTOS_OPERA_USERNAME` | Usuário do OPERA. |
 | `RECEBIMENTOS_OPERA_PASSWORD` | Senha do OPERA. |
-| `RECEBIMENTOS_OPERA_HOTEL` | Nome exato do hotel ou resort. |
+| `RECEBIMENTOS_OPERA_HOTEL_CHARME`, `_CUMBUCO`, `_ICARAIZINHO`, `_TAIBA`, `_MAGNA` | Localização exata de cada empresa no OPERA. Para MAGNA, `RECEBIMENTOS_OPERA_HOTEL` continua válido. |
 | `RECEBIMENTOS_CMFLEX_USERNAME` | Usuário do CMFlex. |
 | `RECEBIMENTOS_CMFLEX_PASSWORD` | Senha do CMFlex. |
 | `RECEBIMENTOS_REDE_DIR` | Pasta onde o setor disponibiliza a planilha Rede. |
@@ -211,14 +211,24 @@ Cadastre secrets exclusivos para esta automação:
 A execução manual está em
 **Actions → Conferência de recebimentos → Run workflow**. O workflow usa os
 Secrets `RECEBIMENTOS_*` para credenciais e caminhos, sem recorrer às
-credenciais da automação Booking × OPERA. A empresa do CMFlex é `MAGNA` por
-padrão e pode ser definida por `RECEBIMENTOS_CMFLEX_COMPANY` em Secret ou
-Variable. A pasta da Rede é obrigatória;
-sem ela, a execução falha antes dos downloads em vez de pular a conferência.
+credenciais da automação Booking × OPERA. Executa sequencialmente CHARME,
+CUMBUCO, ICARAIZINHO, TAIBA e MAGNA; CM CENTRAL SERVIÇOS é ignorada. No
+CMFlex, seleciona as empresas pelos nomes completos apresentados na lista.
+A pasta da Rede deve conter um Excel por empresa e data, por exemplo
+`Rede Carmel Charme 16.09.xlsx` e `Rede Magna 16.09.xlsx`. O nome deve conter
+`Rede`, a data (`DD.MM`, `DD-MM`, `DD_MM` ou `AAAA-MM-DD`) e o nome da empresa.
+Arquivos sem identificação, ambíguos, duplicados ou ausentes interrompem a
+execução antes dos downloads. A empresa CM CENTRAL SERVIÇOS é ignorada.
+Os três relatórios Excel de cada empresa são arquivados em
+`RECEBIMENTOS_ARCHIVE_ROOT/MM - MÊS/DD/EMPRESA/`; downloads ficam separados
+em `output/recebimentos/empresa/`. O modo antigo `--conferir-baixados`
+permanece disponível para uma única empresa com `--hotel` e
+`--empresa-cmflex`.
 Secrets cadastrados em um Environment não ficam disponíveis neste job sem
 vincular esse Environment ao workflow.
-Nesta etapa, ele baixa os relatórios do OPERA e do CMFlex e publica o artefato
-`conferencia-recebimentos-<número-da-execução>`.
+O workflow publica os arquivos sob `output/recebimentos` no artefato
+`conferencia-recebimentos-<número-da-execução>`. Se a raiz de arquivo for
+externa, as conferências finais permanecem nessa raiz, acessível ao runner.
 
 ### Arquivos gerados
 

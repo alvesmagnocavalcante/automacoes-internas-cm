@@ -11,6 +11,27 @@ from automations.recebimentos.workbooks import save_conference_workbooks
 
 
 class ConferenceWorkbooksTests(TestCase):
+    def test_separates_companies_without_overwriting_previous_result(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            opera, cmflex, rede = (root / name for name in ("opera.xml", "cmflex.xlsx", "rede.xlsx"))
+            self._write_opera(opera)
+            self._write_cmflex(cmflex)
+            self._write_rede(rede)
+            result = reconcile(parse_opera(opera), parse_cmflex(cmflex), parse_rede(rede))
+            archive = root / "conferencias"
+            charme, _ = save_conference_workbooks(
+                opera, cmflex, rede, result, archive, date(2026, 8, 1),
+                "CHARME", "CHARME",
+            )
+            magna, _ = save_conference_workbooks(
+                opera, cmflex, rede, result, archive, date(2026, 8, 1),
+                "MAGNA", "MAGNA",
+            )
+            self.assertEqual(charme.parent, magna.parent)
+            self.assertEqual(len(list(charme.glob("*.xlsx"))), 3)
+            self.assertEqual(len(list(magna.glob("*.xlsx"))), 3)
+
     def test_creates_only_three_marked_excel_files(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
