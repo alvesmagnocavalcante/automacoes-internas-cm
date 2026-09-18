@@ -1,7 +1,9 @@
+import shutil
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import patch
 
 from openpyxl import Workbook, load_workbook
 
@@ -48,15 +50,19 @@ class ConferenceWorkbooksTests(TestCase):
             destination.mkdir(parents=True)
             (destination / "Conferencia antiga.json").write_text("{}")
 
-            saved_directory, saved = save_conference_workbooks(
-                opera,
-                cmflex,
-                rede,
-                result,
-                root / "conferencias",
-                date(2026, 8, 1),
-                "MAGNA - Magna Praia Hotel",
-            )
+            with patch(
+                "automations.recebimentos.workbooks.shutil.copyfile",
+                wraps=shutil.copyfile,
+            ) as copyfile:
+                saved_directory, saved = save_conference_workbooks(
+                    opera,
+                    cmflex,
+                    rede,
+                    result,
+                    root / "conferencias",
+                    date(2026, 8, 1),
+                    "MAGNA - Magna Praia Hotel",
+                )
 
             self.assertEqual(saved_directory, destination)
             self.assertEqual(
@@ -68,6 +74,11 @@ class ConferenceWorkbooksTests(TestCase):
                 ],
             )
             self.assertEqual(set(saved), {"Opera", "CmFlex", "Rede"})
+            self.assertEqual(copyfile.call_count, 3)
+            self.assertEqual(
+                {call.args[1] for call in copyfile.call_args_list},
+                set(saved.values()),
+            )
 
             opera_book = load_workbook(saved["Opera"])
             self.assertEqual(opera_book.active["F2"].fill.fgColor.rgb, "00FFFF00")

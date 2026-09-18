@@ -92,7 +92,9 @@ def save_conference_workbooks(
             elif existing.is_dir():
                 shutil.rmtree(existing)
         for name in names.values():
-            shutil.move(staging / name, destination / name)
+            # Arquivo novo herda a ACL da pasta final; move preserva a ACL
+            # restrita do TemporaryDirectory no mesmo volume (Windows).
+            shutil.copyfile(staging / name, destination / name)
 
     paths = {system: destination / name for system, name in names.items()}
     return destination, paths
