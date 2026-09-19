@@ -1,15 +1,90 @@
+import os
 import shutil
+import stat
+import subprocess
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest import TestCase, skipUnless
+from unittest.mock import call, patch
 
 from openpyxl import Workbook, load_workbook
 
 from automations.recebimentos.domain import reconcile
 from automations.recebimentos.parsers import parse_cmflex, parse_opera, parse_rede
-from automations.recebimentos.workbooks import save_conference_workbooks
+from automations.recebimentos.workbooks import (
+    _copy_with_permissions,
+    _set_read_permissions,
+    save_conference_workbooks,
+)
+
+
+class WorkbookPermissionsTests(TestCase):
+    def test_windows_grants_explicit_read_after_copy(self):
+        with TemporaryDirectory() as directory:
+            src = Path(directory) / "origem.xlsx"
+            dst = Path(directory) / "relatório final.xlsx"
+            src.write_bytes(b"workbook")
+
+            def check_copy(*args, **kwargs):
+                self.assertEqual(dst.read_bytes(), b"workbook")
+
+            with (
+                patch("automations.recebimentos.workbooks.os", SimpleNamespace(name="nt")),
+                patch("automations.recebimentos.workbooks.subprocess.run", side_effect=check_copy) as run,
+            ):
+                _copy_with_permissions(src, dst)
+                run.assert_called_once_with(
+                    ["icacls", str(dst), "/grant", "*S-1-5-32-545:R"],
+                    check=True, capture_output=True,
+                )
+
+    def test_windows_directory_grants_traversal_and_propagates_failure(self):
+        directory = Path("reports")
+        with (
+            patch("automations.recebimentos.workbooks.os", SimpleNamespace(name="nt")),
+            patch("automations.recebimentos.workbooks.subprocess.run") as run,
+        ):
+            _set_read_permissions(directory, directory=True)
+            run.assert_called_once_with(
+                ["icacls", str(directory), "/grant", "*S-1-5-32-545:RX"],
+                check=True, capture_output=True,
+            )
+            run.side_effect = subprocess.CalledProcessError(1, "icacls")
+            with self.assertRaises(subprocess.CalledProcessError):
+                _set_read_permissions(directory, directory=True)
+
+    def test_posix_applies_file_mode_after_copy(self):
+        with TemporaryDirectory() as directory:
+            src = Path(directory) / "source.xlsx"
+            dst = Path(directory) / "target.xlsx"
+            src.write_bytes(b"workbook")
+            with patch("automations.recebimentos.workbooks.os") as operating_system:
+                operating_system.name = "posix"
+                operating_system.chmod.side_effect = lambda *args: self.assertEqual(
+                    dst.read_bytes(), b"workbook"
+                )
+                _copy_with_permissions(src, dst)
+                operating_system.chmod.assert_called_once_with(dst, 0o644)
+
+    @skipUnless(os.name == "posix", "Requer permissões POSIX reais")
+    def test_posix_overrides_restrictive_umask(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            src = root / "source.xlsx"
+            src.write_bytes(b"workbook")
+            previous_umask = os.umask(0o077)
+            try:
+                destination = root / "reports"
+                destination.mkdir()
+                _set_read_permissions(destination, directory=True)
+                dst = destination / "target.xlsx"
+                _copy_with_permissions(src, dst)
+            finally:
+                os.umask(previous_umask)
+            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE(dst.stat().st_mode), 0o644)
 
 
 class ConferenceWorkbooksTests(TestCase):
@@ -53,7 +128,10 @@ class ConferenceWorkbooksTests(TestCase):
             with patch(
                 "automations.recebimentos.workbooks.shutil.copyfile",
                 wraps=shutil.copyfile,
-            ) as copyfile:
+            ) as copyfile, patch(
+                "automations.recebimentos.workbooks._set_read_permissions",
+                wraps=_set_read_permissions,
+            ) as permissions:
                 saved_directory, saved = save_conference_workbooks(
                     opera,
                     cmflex,
@@ -74,6 +152,15 @@ class ConferenceWorkbooksTests(TestCase):
                 ],
             )
             self.assertEqual(set(saved), {"Opera", "CmFlex", "Rede"})
+            self.assertEqual(
+                permissions.call_args_list,
+                [
+                    call(root / "conferencias", directory=True),
+                    call(destination.parent, directory=True),
+                    call(destination, directory=True),
+                    *(call(path) for path in saved.values()),
+                ],
+            )
             self.assertEqual(copyfile.call_count, 3)
             self.assertEqual(
                 {call.args[1] for call in copyfile.call_args_list},

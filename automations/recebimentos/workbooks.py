@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import shutil
+import stat
+import subprocess
 import warnings
 from copy import copy
 from datetime import date
@@ -20,6 +23,33 @@ from automations.recebimentos.normalization import normalize
 
 YELLOW = "FFFF00"
 GROUP_COLORS = ("FF99CC", "CC66FF", "99CCFF", "99FF99", "FFCC99")
+
+# BUILTIN\Users: SID independente do idioma do Windows.
+WINDOWS_READ_GROUP = "*S-1-5-32-545"
+
+
+def _set_read_permissions(path: Path, *, directory: bool = False) -> None:
+    """Concede leitura explícita; pastas também precisam permitir travessia.
+
+    A conta executora precisa poder alterar permissões. Negações explícitas
+    de ACL e restrições em ancestrais externos à raiz não são removidas.
+    """
+    if os.name == "nt":
+        permission = "RX" if directory else "R"
+        subprocess.run(
+            ["icacls", str(path), "/grant", f"{WINDOWS_READ_GROUP}:{permission}"],
+            check=True,
+            capture_output=True,
+        )
+    else:
+        mode = stat.S_IMODE(path.stat().st_mode) | 0o555 if directory else 0o644
+        os.chmod(path, mode)
+
+
+def _copy_with_permissions(src: Path, dst: Path) -> None:
+    """Copia o conteúdo e aplica leitura sem depender da herança da pasta."""
+    shutil.copyfile(src, dst)
+    _set_read_permissions(dst)
 
 CMFLEX_COLUMNS = (
     "Cliente",
@@ -86,15 +116,19 @@ def save_conference_workbooks(
         _save_rede(rede_path, staging / names["Rede"], colors["rede"])
 
         destination.mkdir(parents=True, exist_ok=True)
+        # Ajusta somente a árvore de relatórios, sem alterar ancestrais de root.
+        directory = root
+        _set_read_permissions(directory, directory=True)
+        for part in destination.relative_to(root).parts:
+            directory /= part
+            _set_read_permissions(directory, directory=True)
         for existing in destination.iterdir():
             if existing.is_file():
                 existing.unlink()
             elif existing.is_dir():
                 shutil.rmtree(existing)
         for name in names.values():
-            # Arquivo novo herda a ACL da pasta final; move preserva a ACL
-            # restrita do TemporaryDirectory no mesmo volume (Windows).
-            shutil.copyfile(staging / name, destination / name)
+            _copy_with_permissions(staging / name, destination / name)
 
     paths = {system: destination / name for system, name in names.items()}
     return destination, paths
