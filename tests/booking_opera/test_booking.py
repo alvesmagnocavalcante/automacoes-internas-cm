@@ -100,31 +100,40 @@ class BookingTests(TestCase):
             "BOOKING_WIND_USERNAME": "wind",
             "BOOKING_WIND_PASSWORD": "senha-wind",
             "OPERA_HOTEL_WIND": "WIND",
+            "BOOKING_TAIBA_USERNAME": "taiba",
+            "BOOKING_TAIBA_PASSWORD": "senha-taiba",
+            "OPERA_HOTEL_TAIBA": "TAIBA",
             "BOOKING_ARCHIVE_DIR": "arquivo",
         }
         with patch.dict("os.environ", environment, clear=True):
             magna = company_config_from_env("MAGNA")
             charme = company_config_from_env("CHARME")
             wind = company_config_from_env("WIND")
+            taiba = company_config_from_env("TAIBA")
 
         self.assertEqual(
-            [config.booking_username for config in (magna, charme, wind)],
-            ["magna-antigo", "charme", "wind"],
+            [config.booking_username for config in (magna, charme, wind, taiba)],
+            ["magna-antigo", "charme", "wind", "taiba"],
         )
         self.assertEqual(
-            [config.hotel_name for config in (magna, charme, wind)],
-            ["MAGNA", "CHARME", "WIND"],
+            [config.hotel_name for config in (magna, charme, wind, taiba)],
+            ["MAGNA", "CHARME", "WIND", "TAIBA"],
         )
         self.assertEqual(
-            [config.opera_username for config in (magna, charme, wind)],
-            ["opera-compartilhado"] * 3,
+            [config.opera_username for config in (magna, charme, wind, taiba)],
+            ["opera-compartilhado"] * 4,
         )
         self.assertEqual(
-            [config.output_dir for config in (magna, charme, wind)],
-            [Path("output/magna"), Path("output/charme"), Path("output/wind")],
+            [config.output_dir for config in (magna, charme, wind, taiba)],
+            [
+                Path("output/magna"),
+                Path("output/charme"),
+                Path("output/wind"),
+                Path("output/taiba"),
+            ],
         )
         self.assertEqual(charme.archive_dir, Path("arquivo/charme"))
-        for config in (magna, charme, wind):
+        for config in (magna, charme, wind, taiba):
             config.validate()
 
     def test_company_configuration_does_not_reuse_magna_credentials_for_charme(self):

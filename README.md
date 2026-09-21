@@ -158,21 +158,24 @@ Em **Settings → Secrets and variables → Actions → Repository secrets**, co
 | `BOOKING_CHARME_PASSWORD` | Senha Booking da CHARME; obrigatória. |
 | `BOOKING_WIND_USERNAME` | Usuário Booking da WIND; obrigatório. |
 | `BOOKING_WIND_PASSWORD` | Senha Booking da WIND; obrigatória. |
+| `BOOKING_TAIBA_USERNAME` | Usuário Booking da TAIBA; obrigatório. |
+| `BOOKING_TAIBA_PASSWORD` | Senha Booking da TAIBA; obrigatória. |
 | `OPERA_USERNAME` | Usuário OPERA compartilhado entre as empresas deste workflow; obrigatório. |
 | `OPERA_PASSWORD` | Senha OPERA compartilhada; obrigatória. |
 | `OPERA_HOTEL` | Localização MAGNA no OPERA; use esta ou `OPERA_HOTEL_MAGNA`. |
 | `OPERA_HOTEL_MAGNA` | Opcional: substitui `OPERA_HOTEL` para MAGNA. |
 | `OPERA_HOTEL_CHARME` | Localização CHARME no OPERA; obrigatória. |
 | `OPERA_HOTEL_WIND` | Localização WIND no OPERA; obrigatória. |
+| `OPERA_HOTEL_TAIBA` | Localização TAIBA no OPERA; obrigatória. |
 
 A execução manual está disponível em
 **Actions → Conciliação Booking x OPERA → Run workflow**.
 
 O agendamento permanece desabilitado no workflow; a execução atual é manual.
 
-O workflow confere `CHARME`, `WIND` e `MAGNA` nessa ordem, sem executar duas
+O workflow confere `CHARME`, `WIND`, `TAIBA` e `MAGNA` nessa ordem, sem executar duas
 empresas ao mesmo tempo. Antes de abrir o navegador, valida as credenciais e o
-hotel OPERA das três; se uma conferência falhar, as seguintes não começam.
+hotel OPERA das quatro; se uma conferência falhar, as seguintes não começam.
 O mesmo usuário e senha `OPERA_USERNAME`/`OPERA_PASSWORD` são usados em todas.
 
 Cadastre os nomes dos hotéis como **Secrets** do repositório, assim como o
