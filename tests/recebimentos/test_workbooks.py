@@ -1,13 +1,12 @@
 import os
 import shutil
-import stat
 import subprocess
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase, skipUnless
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from openpyxl import Workbook, load_workbook
 
@@ -15,13 +14,13 @@ from automations.recebimentos.domain import reconcile
 from automations.recebimentos.parsers import parse_cmflex, parse_opera, parse_rede
 from automations.recebimentos.workbooks import (
     _copy_with_permissions,
-    _set_read_permissions,
+    _reset_inherited_permissions,
     save_conference_workbooks,
 )
 
 
 class WorkbookPermissionsTests(TestCase):
-    def test_windows_grants_explicit_read_after_copy(self):
+    def test_windows_resets_acl_after_copy(self):
         with TemporaryDirectory() as directory:
             src = Path(directory) / "origem.xlsx"
             dst = Path(directory) / "relatório final.xlsx"
@@ -36,24 +35,19 @@ class WorkbookPermissionsTests(TestCase):
             ):
                 _copy_with_permissions(src, dst)
                 run.assert_called_once_with(
-                    ["icacls", str(dst), "/grant", "*S-1-5-32-545:R"],
+                    ["icacls", str(dst), "/reset", "/Q"],
                     check=True, capture_output=True,
                 )
 
-    def test_windows_directory_grants_traversal_and_propagates_failure(self):
-        directory = Path("reports")
+    def test_windows_acl_failure_is_propagated(self):
+        path = Path("report.xlsx")
         with (
             patch("automations.recebimentos.workbooks.os", SimpleNamespace(name="nt")),
             patch("automations.recebimentos.workbooks.subprocess.run") as run,
         ):
-            _set_read_permissions(directory, directory=True)
-            run.assert_called_once_with(
-                ["icacls", str(directory), "/grant", "*S-1-5-32-545:RX"],
-                check=True, capture_output=True,
-            )
             run.side_effect = subprocess.CalledProcessError(1, "icacls")
             with self.assertRaises(subprocess.CalledProcessError):
-                _set_read_permissions(directory, directory=True)
+                _reset_inherited_permissions(path)
 
     def test_posix_applies_file_mode_after_copy(self):
         with TemporaryDirectory() as directory:
@@ -78,13 +72,11 @@ class WorkbookPermissionsTests(TestCase):
             try:
                 destination = root / "reports"
                 destination.mkdir()
-                _set_read_permissions(destination, directory=True)
                 dst = destination / "target.xlsx"
                 _copy_with_permissions(src, dst)
             finally:
                 os.umask(previous_umask)
-            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o755)
-            self.assertEqual(stat.S_IMODE(dst.stat().st_mode), 0o644)
+            self.assertEqual(dst.stat().st_mode & 0o777, 0o644)
 
 
 class ConferenceWorkbooksTests(TestCase):
@@ -128,10 +120,7 @@ class ConferenceWorkbooksTests(TestCase):
             with patch(
                 "automations.recebimentos.workbooks.shutil.copyfile",
                 wraps=shutil.copyfile,
-            ) as copyfile, patch(
-                "automations.recebimentos.workbooks._set_read_permissions",
-                wraps=_set_read_permissions,
-            ) as permissions:
+            ) as copyfile:
                 saved_directory, saved = save_conference_workbooks(
                     opera,
                     cmflex,
@@ -152,15 +141,6 @@ class ConferenceWorkbooksTests(TestCase):
                 ],
             )
             self.assertEqual(set(saved), {"Opera", "CmFlex", "Rede"})
-            self.assertEqual(
-                permissions.call_args_list,
-                [
-                    call(root / "conferencias", directory=True),
-                    call(destination.parent, directory=True),
-                    call(destination, directory=True),
-                    *(call(path) for path in saved.values()),
-                ],
-            )
             self.assertEqual(copyfile.call_count, 3)
             self.assertEqual(
                 {call.args[1] for call in copyfile.call_args_list},
