@@ -1,9 +1,6 @@
 name: Conferência de recebimentos
 
 on:
-  schedule:
-    - cron: '10 18 * * *'
-      timezone: America/Sao_Paulo
   workflow_dispatch:
     inputs:
       allow_partial:

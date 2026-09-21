@@ -1,5 +1,8 @@
 # Automações Internas CM
 
+Documentação completa de instalação, configuração, operação, GitHub Actions,
+runner Windows e Semaphore UI: [Guia técnico e operacional](docs/GUIA_OPERACIONAL.md).
+
 Repositório centralizado para desenvolvimento e execução de automações internas
 por meio do GitHub Actions, utilizando runners Windows `self-hosted`.
 
@@ -292,7 +295,7 @@ são repassados pelos workflows atuais.
 3. Registre o identificador e o ponto de entrada em `automations/registry.py`.
 4. Adicione os testes em `tests/<nome_da_automacao>/`.
 5. Crie o workflow `.github/workflows/<nome-da-automacao>.yml`.
-6. Configure no workflow os secrets, a agenda, o timeout, a concorrência e os
+6. Configure no workflow os secrets, o timeout, a concorrência e os
    artefatos específicos da automação.
 
 O comando do workflow deve informar explicitamente o identificador registrado:

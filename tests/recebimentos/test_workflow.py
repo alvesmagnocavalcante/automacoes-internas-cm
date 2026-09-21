@@ -35,6 +35,8 @@ class RecebimentosWorkflowTests(TestCase):
         self.assertIn('"conferencia-recebimentos", "--all-companies"', workflow)
         self.assertIn('$arguments += "--allow-partial"', workflow)
         self.assertIn('$arguments += @("--data", $env:REPORT_DATE)', workflow)
+        self.assertNotIn("schedule:", workflow)
+        self.assertNotIn("cron:", workflow)
         self.assertNotIn("if: ${{ vars.RECEBIMENTOS_REDE_DIR != '' }}", workflow)
 
     def test_maps_every_opera_hotel_to_the_runner(self):
