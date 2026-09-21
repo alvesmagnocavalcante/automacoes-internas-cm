@@ -199,13 +199,15 @@ def _save_cmflex(source_path: Path, target_path: Path, colors: dict[str, str]) -
 def _copy_cell(source, target) -> None:
     target.value = source.value
     if source.has_style:
-        target._style = copy(source._style)
-    if source.number_format:
-        target.number_format = source.number_format
-    if source.alignment:
+        # StyleArray guarda IDs do workbook de origem. Copiar `_style`
+        # diretamente entre workbooks pode gerar referências inválidas em
+        # xl/styles.xml; os atributos públicos registram cada estilo no destino.
+        target.font = copy(source.font)
+        target.fill = copy(source.fill)
+        target.border = copy(source.border)
         target.alignment = copy(source.alignment)
-    if source.protection:
         target.protection = copy(source.protection)
+        target.number_format = source.number_format
 
 
 def _save_opera(source_path: Path, target_path: Path, colors: dict[str, str]) -> None:

@@ -9,10 +9,12 @@ from unittest import TestCase, skipUnless
 from unittest.mock import patch
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 
 from automations.recebimentos.domain import reconcile
 from automations.recebimentos.parsers import parse_cmflex, parse_opera, parse_rede
 from automations.recebimentos.workbooks import (
+    _copy_cell,
     _copy_with_permissions,
     _reset_inherited_permissions,
     save_conference_workbooks,
@@ -77,6 +79,39 @@ class WorkbookPermissionsTests(TestCase):
             finally:
                 os.umask(previous_umask)
             self.assertEqual(dst.stat().st_mode & 0o777, 0o644)
+
+
+class WorkbookStyleTests(TestCase):
+    def test_copy_cell_registers_styles_in_destination_workbook(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "styled.xlsx"
+            source_book = Workbook()
+            source = source_book.active["A1"]
+            source.value = "Documento"
+            source.font = Font(name="Aptos", bold=True, color="FF123456")
+            source.fill = PatternFill(fill_type="solid", fgColor="FFABCDEF")
+            source.border = Border(left=Side(style="thin", color="FF654321"))
+            source.alignment = Alignment(horizontal="center")
+            source.protection = Protection(locked=False)
+            source.number_format = "dd/mm/yyyy"
+
+            target_book = Workbook()
+            _copy_cell(source, target_book.active["A1"])
+            target_book.save(path)
+            target_book.close()
+            source_book.close()
+
+            reopened = load_workbook(path)
+            target = reopened.active["A1"]
+            self.assertEqual(target.value, "Documento")
+            self.assertTrue(target.font.bold)
+            self.assertEqual(target.font.color.rgb, "FF123456")
+            self.assertEqual(target.fill.fgColor.rgb, "FFABCDEF")
+            self.assertEqual(target.border.left.style, "thin")
+            self.assertEqual(target.alignment.horizontal, "center")
+            self.assertFalse(target.protection.locked)
+            self.assertEqual(target.number_format, "dd/mm/yyyy")
+            reopened.close()
 
 
 class ConferenceWorkbooksTests(TestCase):
