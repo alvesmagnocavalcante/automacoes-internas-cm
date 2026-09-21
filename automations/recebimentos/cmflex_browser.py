@@ -358,11 +358,10 @@ def download_document_entries(
     download_dir: Path,
     cancel: Event | None = None,
     *,
-    run_date: date | None = None,
+    report_date: date | None = None,
 ) -> Path:
-    """Preenche o dia corrente e baixa Lançamentos de Documentos."""
-    execution_date = run_date or date.today()
-    report_date = execution_date - timedelta(days=1)
+    """Baixa Lançamentos de Documentos da data de referência informada."""
+    report_date = report_date or date.today() - timedelta(days=1)
     formatted_date = report_date.strftime("%d/%m/%Y")
     for selectors, description in (
         (START_DATE_SELECTORS, "Data de Lançamento Inicial"),
@@ -424,6 +423,7 @@ def run_cmflex_download(
     download_dir: Path,
     cancel: Event | None = None,
     *,
+    report_date: date | None = None,
     browser_factory: Callable[[], Any] | None = None,
 ) -> Path:
     """Executa o fluxo completo do CMFlex e sempre fecha o navegador."""
@@ -433,7 +433,9 @@ def run_cmflex_download(
     try:
         tab = login_cmflex(browser, config, cancel)
         report_tab = open_document_entries_report(browser, tab, cancel)
-        return download_document_entries(report_tab, download_dir, cancel)
+        return download_document_entries(
+            report_tab, download_dir, cancel, report_date=report_date
+        )
     finally:
         if report_tab is not None:
             try:

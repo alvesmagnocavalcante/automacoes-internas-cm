@@ -6,7 +6,7 @@ import argparse
 import logging
 import os
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from automations.recebimentos.cmflex_browser import (
@@ -19,6 +19,7 @@ from automations.recebimentos.daily_files import (
     find_rede_report,
     find_rede_reports,
     previous_report_date,
+    report_dates_for_execution,
 )
 from automations.recebimentos.opera_browser import (
     config_from_env,
@@ -29,6 +30,19 @@ from automations.recebimentos.service import run
 from automations.recebimentos.workbooks import save_conference_workbooks
 
 LOGGER = logging.getLogger("conferencia-recebimentos")
+
+
+def _parse_report_date(value: str) -> date:
+    for date_format in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, date_format).date()
+        except ValueError:
+            pass
+    raise argparse.ArgumentTypeError("Use DD/MM/AAAA ou AAAA-MM-DD.")
+
+
+def _single_report_date(args: argparse.Namespace) -> date:
+    return args.report_date or previous_report_date()
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -59,7 +73,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--conferir-baixados",
         action="store_true",
         help=(
-            "Localiza os relatórios do dia anterior, baixa OPERA/CMFlex quando "
+            "Localiza os relatórios da data de referência, baixa OPERA/CMFlex quando "
             "necessário e arquiva a conferência."
         ),
     )
@@ -112,6 +126,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("output/recebimentos"),
         help="Pasta para os relatórios baixados.",
     )
+    parser.add_argument(
+        "--data",
+        dest="report_date",
+        type=_parse_report_date,
+        help="Data específica da conferência (DD/MM/AAAA ou AAAA-MM-DD).",
+    )
     return parser.parse_args(argv)
 
 
@@ -123,18 +143,28 @@ def _run_all_companies(args: argparse.Namespace) -> int:
     if args.rede_dir is None:
         raise ValueError("Informe --rede-dir ou RECEBIMENTOS_REDE_DIR.")
 
-    report_date = previous_report_date(date.today())
-    rede_reports = find_rede_reports(
-        args.rede_dir, report_date, require_all=not args.allow_partial
-    )
+    report_dates = report_dates_for_execution(report_date=args.report_date)
+    rede_reports_by_date = {
+        report_date: find_rede_reports(
+            args.rede_dir,
+            report_date,
+            require_all=not args.allow_partial,
+        )
+        for report_date in report_dates
+    }
+    selected_codes = {
+        code for reports in rede_reports_by_date.values() for code in reports
+    }
     companies = [
-        company for company in ACTIVE_COMPANIES if company.code in rede_reports
+        company for company in ACTIVE_COMPANIES if company.code in selected_codes
     ]
     if args.allow_partial:
-        LOGGER.warning(
-            "Teste parcial: conferindo somente %s; demais empresas não serão processadas.",
-            ", ".join(company.code for company in companies),
-        )
+        for report_date, reports in rede_reports_by_date.items():
+            LOGGER.warning(
+                "Teste parcial de %s: conferindo somente %s.",
+                report_date.strftime("%d/%m/%Y"),
+                ", ".join(reports),
+            )
     hotels = {company.code: company.opera_hotel for company in companies}
     missing = [code for code, hotel in hotels.items() if not hotel]
     if missing:
@@ -147,39 +177,53 @@ def _run_all_companies(args: argparse.Namespace) -> int:
     cmflex_config_from_env(companies[0].cmflex_name).validate()
 
     has_divergence = False
-    for company in companies:
-        LOGGER.info("Iniciando conferência de recebimentos: %s", company.code)
-        download_dir = args.download_dir / company.code.lower()
-        try:
-            opera = find_downloaded_report(download_dir, "opera", report_date)
-        except (FileNotFoundError, NotADirectoryError):
-            opera = run_opera_download(opera_config, hotels[company.code], download_dir)
-        try:
-            cmflex = find_downloaded_report(download_dir, "cmflex", report_date)
-        except (FileNotFoundError, NotADirectoryError):
-            cmflex = run_cmflex_download(
-                cmflex_config_from_env(company.cmflex_name), download_dir
+    for report_date, rede_reports in rede_reports_by_date.items():
+        for company in companies:
+            if company.code not in rede_reports:
+                continue
+            LOGGER.info(
+                "Iniciando conferência de recebimentos: %s - %s",
+                company.code,
+                report_date.strftime("%d/%m/%Y"),
             )
-        rede = rede_reports[company.code]
-        result = run(opera, cmflex, rede, None)
-        destination, _ = save_conference_workbooks(
-            opera,
-            cmflex,
-            rede,
-            result,
-            args.archive_root,
-            report_date,
-            company.code,
-            company.code,
-        )
-        LOGGER.info(
-            "%s: %d OK, %d divergentes. Arquivo: %s",
-            company.code,
-            result.matched_count,
-            result.divergent_count,
-            destination,
-        )
-        has_divergence |= bool(result.divergent_count)
+            download_dir = args.download_dir / company.code.lower()
+            try:
+                opera = find_downloaded_report(download_dir, "opera", report_date)
+            except (FileNotFoundError, NotADirectoryError):
+                opera = run_opera_download(
+                    opera_config,
+                    hotels[company.code],
+                    download_dir,
+                    report_date=report_date,
+                )
+            try:
+                cmflex = find_downloaded_report(download_dir, "cmflex", report_date)
+            except (FileNotFoundError, NotADirectoryError):
+                cmflex = run_cmflex_download(
+                    cmflex_config_from_env(company.cmflex_name),
+                    download_dir,
+                    report_date=report_date,
+                )
+            rede = rede_reports[company.code]
+            result = run(opera, cmflex, rede, None)
+            destination, _ = save_conference_workbooks(
+                opera,
+                cmflex,
+                rede,
+                result,
+                args.archive_root,
+                report_date,
+                company.code,
+                company.code,
+            )
+            LOGGER.info(
+                "%s: %d OK, %d divergentes. Arquivo: %s",
+                company.code,
+                result.matched_count,
+                result.divergent_count,
+                destination,
+            )
+            has_divergence |= bool(result.divergent_count)
     return 2 if args.fail_on_divergence and has_divergence else 0
 
 
@@ -200,7 +244,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "Informe --hotel ou RECEBIMENTOS_OPERA_HOTEL para baixar o OPERA."
                 )
             downloaded = run_opera_download(
-                config_from_env(), args.hotel, args.download_dir
+                config_from_env(),
+                args.hotel,
+                args.download_dir,
+                report_date=_single_report_date(args),
             )
             LOGGER.info("Relatório OPERA baixado: %s", downloaded)
             return 0
@@ -209,6 +256,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             downloaded = run_cmflex_download(
                 cmflex_config_from_env(args.empresa_cmflex),
                 args.download_dir,
+                report_date=_single_report_date(args),
             )
             LOGGER.info("Relatório CMFlex baixado: %s", downloaded)
             return 0
@@ -216,7 +264,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.conferir_baixados:
             if args.rede_dir is None:
                 raise ValueError("Informe --rede-dir ou RECEBIMENTOS_REDE_DIR.")
-            report_date = previous_report_date(date.today())
+            report_date = _single_report_date(args)
             try:
                 args.opera = find_downloaded_report(
                     args.download_dir, "opera", report_date
@@ -228,7 +276,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ) from None
                 LOGGER.info("Relatório OPERA ausente; iniciando download.")
                 args.opera = run_opera_download(
-                    config_from_env(), args.hotel, args.download_dir
+                    config_from_env(),
+                    args.hotel,
+                    args.download_dir,
+                    report_date=report_date,
                 )
 
             try:
@@ -240,6 +291,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.cmflex = run_cmflex_download(
                     cmflex_config_from_env(args.empresa_cmflex),
                     args.download_dir,
+                    report_date=report_date,
                 )
             args.rede = find_rede_report(args.rede_dir, report_date)
             archive_request = (

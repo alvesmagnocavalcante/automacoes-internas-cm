@@ -247,6 +247,11 @@ contiver uma empresa, ela deve coincidir com o conteúdo. Arquivos sem
 identificação, com empresas misturadas, duplicados ou ausentes interrompem a
 execução antes dos downloads. Arquivos de ICARAIZINHO são reconhecidos, mas
 não exigidos nem processados enquanto a empresa estiver inativa.
+Na segunda-feira, a execução programada confere sexta-feira, sábado e domingo,
+nessa ordem; nos demais dias, confere somente o dia anterior. Os relatórios da
+Rede dessas datas podem permanecer juntos na mesma pasta de entrada. Para
+reprocessar apenas uma data, informe `--data DD/MM/AAAA` localmente ou preencha
+`report_date` ao executar o workflow manualmente.
 Para testes com apenas parte das planilhas, marque `allow_partial` em
 **Run workflow** (ou use `--all-companies --allow-partial` localmente). Sem
 essa opção, a execução exige as quatro empresas ativas para evitar conferências

@@ -239,7 +239,7 @@ class CMFlexBrowserTests(TestCase):
                 result = download_document_entries(
                     tab,
                     Path(directory),
-                    run_date=date(2026, 9, 15),
+                    report_date=date(2026, 9, 14),
                 )
 
         self.assertEqual(result, downloaded)
@@ -321,7 +321,7 @@ class CMFlexBrowserTests(TestCase):
                 cmflex_browser,
                 "download_document_entries",
                 return_value=Path("cmflex.xlsx"),
-            ),
+            ) as download,
         ):
             result = run_cmflex_download(
                 config,
@@ -330,6 +330,12 @@ class CMFlexBrowserTests(TestCase):
             )
 
         self.assertEqual(result, Path("cmflex.xlsx"))
+        download.assert_called_once_with(
+            report_tab,
+            Path("output"),
+            None,
+            report_date=None,
+        )
         self.assertTrue(report_tab.closed)
         self.assertEqual(browser.quit_options, {"timeout": 1, "force": False})
 

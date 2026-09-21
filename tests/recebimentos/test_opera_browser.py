@@ -396,7 +396,7 @@ class OperaBrowserTests(TestCase):
                 result = download_financial_payments(
                     tab,
                     Path(directory),
-                    run_date=date(2026, 9, 14),
+                    report_date=date(2026, 9, 13),
                 )
 
         self.assertEqual(result, downloaded)
@@ -646,6 +646,8 @@ class OperaBrowserTests(TestCase):
         self.assertEqual(result, Path("opera.xml"))
         login.assert_called_once_with(browser, config, None)
         hotel.assert_called_once_with("tab", "MAGNA - Magna Praia Hotel", None)
-        download.assert_called_once_with("tab", Path("output"), None)
+        download.assert_called_once_with(
+            "tab", Path("output"), None, report_date=None
+        )
         self.assertEqual(browser.quit_count, 1)
         self.assertEqual(browser.quit_options, {"timeout": 1, "force": False})

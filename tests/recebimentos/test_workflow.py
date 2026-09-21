@@ -32,8 +32,9 @@ class RecebimentosWorkflowTests(TestCase):
 
     def test_conference_step_is_not_silently_skipped(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("run: uv run python main.py conferencia-recebimentos --all-companies", workflow)
-        self.assertIn("inputs.allow_partial && '--allow-partial'", workflow)
+        self.assertIn('"conferencia-recebimentos", "--all-companies"', workflow)
+        self.assertIn('$arguments += "--allow-partial"', workflow)
+        self.assertIn('$arguments += @("--data", $env:REPORT_DATE)', workflow)
         self.assertNotIn("if: ${{ vars.RECEBIMENTOS_REDE_DIR != '' }}", workflow)
 
     def test_maps_every_opera_hotel_to_the_runner(self):

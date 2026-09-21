@@ -12,6 +12,7 @@ from automations.recebimentos.daily_files import (
     find_rede_reports,
     identify_rede_company,
     previous_report_date,
+    report_dates_for_execution,
 )
 
 
@@ -28,6 +29,26 @@ class DailyFilesTests(TestCase):
 
     def test_uses_previous_day_across_month_boundary(self):
         self.assertEqual(previous_report_date(date(2026, 9, 1)), date(2026, 8, 31))
+
+    def test_monday_processes_friday_saturday_and_sunday(self):
+        self.assertEqual(
+            report_dates_for_execution(date(2026, 9, 21)),
+            (date(2026, 9, 18), date(2026, 9, 19), date(2026, 9, 20)),
+        )
+
+    def test_other_weekdays_process_only_previous_day(self):
+        self.assertEqual(
+            report_dates_for_execution(date(2026, 9, 22)),
+            (date(2026, 9, 21),),
+        )
+
+    def test_explicit_report_date_overrides_monday_rule(self):
+        self.assertEqual(
+            report_dates_for_execution(
+                date(2026, 9, 21), report_date=date(2026, 9, 10)
+            ),
+            (date(2026, 9, 10),),
+        )
 
     def test_builds_portuguese_month_and_day_structure(self):
         self.assertEqual(
@@ -125,6 +146,21 @@ class DailyFilesTests(TestCase):
             self._write_rede(root / "Rede Magna Praia 14.09.xlsx", "MAGNA PRAIA")
             with self.assertRaisesRegex(RuntimeError, "Mais de um relatório Rede de MAGNA"):
                 find_rede_reports(root, date(2026, 9, 14))
+
+    def test_separates_multiple_rede_dates_in_same_input_directory(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for day in (18, 19, 20):
+                for company in ("CHARME", "CUMBUCO", "TAIBA", "MAGNA"):
+                    self._write_rede(
+                        root / f"Rede_Rel_Vendas_{day}_09_2026-{company}.xlsx",
+                        company,
+                    )
+
+            reports = find_rede_reports(root, date(2026, 9, 19))
+
+        self.assertEqual(set(reports), {"CHARME", "CUMBUCO", "TAIBA", "MAGNA"})
+        self.assertTrue(all("19_09_2026" in path.name for path in reports.values()))
 
     def test_wind_and_cumbuco_reports_for_same_day_are_duplicates(self):
         with TemporaryDirectory() as directory:

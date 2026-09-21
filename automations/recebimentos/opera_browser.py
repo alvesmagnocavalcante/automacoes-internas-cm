@@ -473,13 +473,12 @@ def download_financial_payments(
     download_dir: Path,
     cancel: Event | None = None,
     *,
-    run_date: date | None = None,
+    report_date: date | None = None,
 ) -> Path:
-    """Gera e baixa o Financial Payments referente ao dia anterior."""
+    """Gera e baixa o Financial Payments da data de referência informada."""
     target_dir = download_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
-    execution_date = run_date or date.today()
-    report_date = execution_date - timedelta(days=1)
+    report_date = report_date or date.today() - timedelta(days=1)
 
     open_reports_and_analytics(tab, cancel)
 
@@ -581,6 +580,7 @@ def run_opera_download(
     download_dir: Path,
     cancel: Event | None = None,
     *,
+    report_date: date | None = None,
     browser_factory: Callable[[], Any] | None = None,
 ) -> Path:
     """Executa login, seleção do hotel e download, sempre fechando o navegador."""
@@ -588,7 +588,9 @@ def run_opera_download(
     try:
         tab = login_opera(browser, config, cancel)
         select_hotel(tab, hotel_name, cancel)
-        return download_financial_payments(tab, download_dir, cancel)
+        return download_financial_payments(
+            tab, download_dir, cancel, report_date=report_date
+        )
     finally:
         _quit_browser(browser)
 

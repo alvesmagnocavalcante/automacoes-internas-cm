@@ -35,6 +35,19 @@ def previous_report_date(execution_date: date | None = None) -> date:
     return (execution_date or date.today()) - timedelta(days=1)
 
 
+def report_dates_for_execution(
+    execution_date: date | None = None,
+    report_date: date | None = None,
+) -> tuple[date, ...]:
+    """Retorna as datas da conferência diária em ordem cronológica."""
+    if report_date is not None:
+        return (report_date,)
+
+    execution_date = execution_date or date.today()
+    days_back = (3, 2, 1) if execution_date.weekday() == 0 else (1,)
+    return tuple(execution_date - timedelta(days=days) for days in days_back)
+
+
 def daily_directory(root: Path, report_date: date) -> Path:
     return root / f"{report_date:%m} - {MONTH_NAMES[report_date.month]}" / f"{report_date:%d}"
 

@@ -11,6 +11,10 @@ on:
         type: boolean
         required: false
         default: false
+      report_date:
+        description: "Data específica opcional (DD/MM/AAAA ou AAAA-MM-DD)"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -73,7 +77,17 @@ jobs:
           }
 
       - name: Conferir e arquivar relatórios
-        run: uv run python main.py conferencia-recebimentos --all-companies ${{ inputs.allow_partial && '--allow-partial' || '' }}
+        shell: powershell
+        env:
+          ALLOW_PARTIAL: ${{ inputs.allow_partial }}
+          REPORT_DATE: ${{ inputs.report_date }}
+        run: |
+          $arguments = @("main.py", "conferencia-recebimentos", "--all-companies")
+          if ($env:ALLOW_PARTIAL -eq "true") { $arguments += "--allow-partial" }
+          if (-not [string]::IsNullOrWhiteSpace($env:REPORT_DATE)) {
+            $arguments += @("--data", $env:REPORT_DATE)
+          }
+          uv run python @arguments
 
       - name: Publicar relatório
         if: ${{ always() }}
